@@ -1,0 +1,35 @@
+# 환경 설정 파일
+Scripts/config/gitlab.env
+*.env
+
+# 로그 파일
+Scripts/logs/
+log/
+*.log
+
+# 백업 파일
+backups/
+gitlab-clones/
+*.bak
+
+# macOS
+.DS_Store
+
+# 편집기
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 임시 파일
+*.tmp
+*~
+
+# Python (스크립트에서 사용할 경우)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 테스트 출력
+test-output/
+coverage/
