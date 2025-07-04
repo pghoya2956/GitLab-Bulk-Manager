@@ -1,0 +1,39 @@
+# GitLab 하위 그룹 구조 정의 파일
+# 특정 부모 그룹 ID 아래에 계층적 그룹 구조를 생성합니다
+# 들여쓰기(2칸)로 계층 구조를 표현합니다
+# 형식: 그룹명|경로|가시성|설명(선택)
+#
+# 사용법:
+# 1. 이 파일을 subgroups.txt로 복사
+# 2. 실제 그룹 구조로 수정
+# 3. ./Scripts/batch/create_subgroups.sh --parent-id [부모그룹ID] --from-file subgroups.txt 실행
+#
+# 예: 개발본부(ID: 100) 아래에 팀 구조 생성
+
+프론트엔드팀|frontend|internal|웹/모바일 UI 개발
+  웹개발파트|web|private|웹 애플리케이션 개발
+  모바일파트|mobile|private|iOS/Android 앱 개발
+  UI/UX파트|uiux|private|사용자 경험 디자인
+백엔드팀|backend|internal|서버 및 API 개발
+  API파트|api|private|RESTful API 서비스
+  마이크로서비스파트|microservices|private|분산 시스템 개발
+  데이터베이스파트|database|private|DB 설계 및 최적화
+데이터팀|data|internal|데이터 분석 및 ML
+  데이터엔지니어링|data-eng|private|데이터 파이프라인
+  데이터분석|data-analytics|private|비즈니스 인텔리전스
+  머신러닝|ml|private|AI/ML 모델 개발
+DevOps팀|devops|internal|인프라 및 자동화
+  CI/CD파트|cicd|private|빌드 및 배포 자동화
+  클라우드파트|cloud|private|클라우드 인프라 관리
+  모니터링파트|monitoring|private|시스템 모니터링
+
+# === 다른 예시: QA팀(ID: 200) 아래 구조 ===
+# 기능테스트팀|functional-test|private|기능 검증
+#   웹테스트파트|web-test|private|웹 애플리케이션 테스트
+#   모바일테스트파트|mobile-test|private|모바일 앱 테스트
+# 성능테스트팀|performance-test|private|성능 최적화
+#   부하테스트파트|load-test|private|부하 테스트
+#   스트레스테스트파트|stress-test|private|스트레스 테스트
+# 자동화테스트팀|automation-test|private|테스트 자동화
+#   E2E테스트파트|e2e-test|private|End-to-End 테스트
+#   API테스트파트|api-test|private|API 자동화 테스트

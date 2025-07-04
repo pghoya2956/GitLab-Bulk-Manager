@@ -1,0 +1,67 @@
+# GitLab 프로젝트 그룹 ID 기반 일괄 생성 파일
+# 형식: 프로젝트명|그룹ID|설명|가시성|이슈활성화|위키활성화|초기브랜치
+#
+# 그룹 ID는 다음 명령으로 확인 가능:
+# ./Scripts/groups/list_groups.sh
+#
+# 사용법:
+# 1. 이 파일을 projects-by-group.txt로 복사
+# 2. 실제 프로젝트 정보와 그룹 ID로 수정
+# 3. ./Scripts/batch/create_projects_by_group.sh --from-file projects-by-group.txt 실행
+
+# === 프론트엔드팀 웹개발파트 (그룹 ID: 110) ===
+web-main|110|메인 웹사이트|private|true|true|main
+web-admin|110|관리자 포털|private|true|true|main
+web-landing|110|랜딩 페이지|public|false|true|main
+web-docs|110|문서 사이트|internal|false|true|main
+
+# === 프론트엔드팀 모바일파트 (그룹 ID: 111) ===
+mobile-ios|111|iOS 네이티브 앱|private|true|true|main
+mobile-android|111|Android 네이티브 앱|private|true|true|main
+mobile-flutter|111|Flutter 크로스플랫폼 앱|private|true|false|develop
+mobile-react-native|111|React Native 앱|private|true|false|develop
+
+# === 백엔드팀 API파트 (그룹 ID: 120) ===
+api-gateway|120|API 게이트웨이 서비스|internal|true|false|main
+api-auth|120|인증/인가 서비스|private|true|false|main
+api-user|120|사용자 관리 API|private|true|false|main
+api-payment|120|결제 처리 API|private|true|false|main
+api-notification|120|알림 서비스 API|private|true|false|main
+
+# === 백엔드팀 마이크로서비스파트 (그룹 ID: 121) ===
+service-order|121|주문 처리 서비스|private|true|false|develop
+service-inventory|121|재고 관리 서비스|private|true|false|develop
+service-shipping|121|배송 관리 서비스|private|true|false|develop
+service-customer|121|고객 관리 서비스|private|true|false|develop
+service-billing|121|과금 처리 서비스|private|true|false|develop
+
+# === 데이터팀 데이터엔지니어링 (그룹 ID: 130) ===
+data-collector|130|실시간 데이터 수집|private|true|false|main
+data-processor|130|데이터 처리 엔진|private|true|false|main
+data-warehouse|130|데이터 웨어하우스|private|true|true|main
+data-etl|130|ETL 파이프라인|private|true|false|main
+data-lake|130|데이터 레이크|private|true|true|main
+
+# === 데이터팀 머신러닝 (그룹 ID: 132) ===
+ml-recommendation|132|추천 시스템 모델|private|true|true|main
+ml-prediction|132|예측 분석 모델|private|true|true|main
+ml-classification|132|분류 모델|private|true|true|main
+ml-training-pipeline|132|ML 학습 파이프라인|private|true|true|main
+ml-serving|132|ML 모델 서빙|private|true|false|main
+
+# === DevOps팀 CI/CD파트 (그룹 ID: 140) ===
+cicd-templates|140|CI/CD 템플릿|internal|true|true|main
+cicd-scripts|140|빌드 스크립트|internal|true|false|main
+cicd-docker|140|Docker 이미지 빌드|private|true|false|main
+
+# === DevOps팀 클라우드파트 (그룹 ID: 141) ===
+infra-terraform|141|Terraform IaC 코드|private|true|true|main
+infra-ansible|141|Ansible 플레이북|private|true|true|main
+k8s-manifests|141|Kubernetes 매니페스트|private|true|true|main
+helm-charts|141|Helm 차트|private|true|true|main
+
+# === 공통 라이브러리 (그룹 ID: 150) ===
+lib-common-java|150|Java 공통 라이브러리|internal|true|false|main
+lib-common-python|150|Python 공통 라이브러리|internal|true|false|main
+lib-common-js|150|JavaScript 공통 라이브러리|internal|true|false|main
+lib-common-go|150|Go 공통 라이브러리|internal|true|false|main

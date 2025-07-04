@@ -1,0 +1,134 @@
+# GitLab 멤버 일괄 추가 예시 파일
+# 형식: 이메일|그룹경로|접근레벨|만료일(선택)
+#
+# 접근 레벨:
+#   - 10 또는 guest: 게스트
+#   - 20 또는 reporter: 리포터
+#   - 30 또는 developer: 개발자
+#   - 40 또는 maintainer: 메인테이너
+#   - 50 또는 owner: 소유자
+#
+# 만료일: YYYY-MM-DD 형식 (선택사항)
+#
+# 사용법:
+# 1. 이 파일을 members.txt로 복사
+# 2. 실제 사용자 정보로 수정
+# 3. ./Scripts/users/manage_members.sh --from-file members.txt --action add 실행
+
+# === 개발본부 전체 멤버 ===
+# 개발본부장
+dev.leader@company.com|dev-division|owner|
+
+# 개발본부 공통 멤버
+dev.manager1@company.com|dev-division|maintainer|
+dev.manager2@company.com|dev-division|maintainer|
+dev.admin@company.com|dev-division|developer|
+
+# === 프론트엔드팀 ===
+# 팀 리더
+frontend.leader@company.com|dev-division/frontend|maintainer|
+
+# 프론트엔드 개발자
+frontend.dev1@company.com|dev-division/frontend|developer|
+frontend.dev2@company.com|dev-division/frontend|developer|
+frontend.dev3@company.com|dev-division/frontend|developer|
+frontend.junior@company.com|dev-division/frontend|developer|
+
+# 웹개발파트 전담
+web.expert@company.com|dev-division/frontend/web|maintainer|
+web.dev1@company.com|dev-division/frontend/web|developer|
+
+# 모바일파트 전담
+mobile.expert@company.com|dev-division/frontend/mobile|maintainer|
+mobile.ios@company.com|dev-division/frontend/mobile|developer|
+mobile.android@company.com|dev-division/frontend/mobile|developer|
+
+# === 백엔드팀 ===
+# 팀 리더
+backend.leader@company.com|dev-division/backend|maintainer|
+
+# 백엔드 개발자
+backend.dev1@company.com|dev-division/backend|developer|
+backend.dev2@company.com|dev-division/backend|developer|
+backend.dev3@company.com|dev-division/backend|developer|
+
+# API파트 전담
+api.architect@company.com|dev-division/backend/api|maintainer|
+api.dev1@company.com|dev-division/backend/api|developer|
+api.dev2@company.com|dev-division/backend/api|developer|
+
+# 마이크로서비스파트
+ms.architect@company.com|dev-division/backend/microservices|maintainer|
+ms.dev1@company.com|dev-division/backend/microservices|developer|
+
+# === 데이터팀 ===
+# 팀 리더
+data.leader@company.com|dev-division/data|maintainer|
+
+# 데이터 엔지니어
+data.engineer1@company.com|dev-division/data/data-eng|developer|
+data.engineer2@company.com|dev-division/data/data-eng|developer|
+
+# 데이터 분석가
+data.analyst1@company.com|dev-division/data/data-analytics|developer|
+data.analyst2@company.com|dev-division/data/data-analytics|developer|
+
+# ML 엔지니어
+ml.engineer1@company.com|dev-division/data/ml|developer|
+ml.engineer2@company.com|dev-division/data/ml|developer|
+
+# === DevOps팀 ===
+# 팀 리더
+devops.leader@company.com|dev-division/devops|maintainer|
+
+# DevOps 엔지니어
+devops.engineer1@company.com|dev-division/devops|developer|
+devops.engineer2@company.com|dev-division/devops|developer|
+
+# CI/CD 전담
+cicd.expert@company.com|dev-division/devops/cicd|maintainer|
+
+# 클라우드 전담
+cloud.architect@company.com|dev-division/devops/cloud|maintainer|
+cloud.engineer@company.com|dev-division/devops/cloud|developer|
+
+# === 운영본부 ===
+# 운영본부장
+ops.leader@company.com|ops-division|owner|
+
+# 시스템운영팀
+sysops.leader@company.com|ops-division/sysops|maintainer|
+sysops.engineer1@company.com|ops-division/sysops|developer|
+sysops.engineer2@company.com|ops-division/sysops|developer|
+
+# 보안팀
+security.leader@company.com|ops-division/security|maintainer|
+security.engineer1@company.com|ops-division/security|developer|
+security.analyst@company.com|ops-division/security|developer|
+
+# === QA팀 ===
+# QA 리더
+qa.leader@company.com|qa-division/qa-team|maintainer|
+
+# QA 엔지니어
+qa.engineer1@company.com|qa-division/qa-team|developer|
+qa.engineer2@company.com|qa-division/qa-team|developer|
+qa.automation@company.com|qa-division/qa-team/automation-test|developer|
+
+# === 외부 협력사 (기간 제한) ===
+# 6개월 계약직
+contractor1@external.com|dev-division/frontend|developer|2024-06-30
+contractor2@external.com|dev-division/backend|developer|2024-06-30
+
+# 3개월 인턴
+intern1@company.com|dev-division/frontend|developer|2024-03-31
+intern2@company.com|dev-division/data|developer|2024-03-31
+
+# === 읽기 전용 접근 (감사, 보고용) ===
+# 경영진
+ceo@company.com|dev-division|reporter|
+cto@company.com|dev-division|reporter|
+
+# 외부 감사
+auditor1@audit.com|dev-division|guest|2024-01-31
+auditor2@audit.com|ops-division|guest|2024-01-31

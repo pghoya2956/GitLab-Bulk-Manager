@@ -1,0 +1,95 @@
+# GitLab Subgroups Configuration (YAML)
+# This file defines subgroups to be created under a parent group ID
+# Supports hierarchical structure with proper indentation
+
+# Parent group ID where all subgroups will be created
+parent_id: 123
+
+# Default settings for all subgroups (can be overridden per group)
+defaults:
+  visibility: private
+  request_access_enabled: true
+  project_creation_level: developer
+  subgroup_creation_level: maintainer
+
+# Subgroups definition
+subgroups:
+  - name: "개발본부"
+    path: "dev-division"
+    description: "개발 조직 전체를 관리하는 본부"
+    visibility: internal
+    settings:
+      lfs_enabled: true
+      emails_disabled: false
+    
+    # Nested subgroups under 개발본부
+    subgroups:
+      - name: "프론트엔드팀"
+        path: "frontend"
+        description: "웹/모바일 UI 개발팀"
+        
+        # Further nested subgroups
+        subgroups:
+          - name: "웹개발파트"
+            path: "web"
+            description: "웹 애플리케이션 개발"
+            settings:
+              auto_devops_enabled: true
+              
+          - name: "모바일파트"
+            path: "mobile"
+            description: "iOS/Android 앱 개발"
+            settings:
+              packages_enabled: true
+      
+      - name: "백엔드팀"
+        path: "backend"
+        description: "API 및 서버 개발팀"
+        visibility: internal
+        
+        subgroups:
+          - name: "API파트"
+            path: "api"
+            description: "REST/GraphQL API 개발"
+            settings:
+              container_registry_enabled: true
+              
+          - name: "인프라파트"
+            path: "infra"
+            description: "DevOps 및 인프라 관리"
+            settings:
+              runners_token: "custom-runner-token"
+
+  - name: "데이터본부"
+    path: "data-division"
+    description: "데이터 분석 및 ML 조직"
+    visibility: internal
+    
+    subgroups:
+      - name: "데이터엔지니어링팀"
+        path: "data-eng"
+        description: "데이터 파이프라인 개발"
+        
+      - name: "ML팀"
+        path: "ml"
+        description: "머신러닝 모델 개발"
+        settings:
+          wiki_enabled: true
+          issues_enabled: true
+
+# Advanced options
+options:
+  # Continue on error for bulk operations
+  continue_on_error: true
+  
+  # Skip if group already exists
+  skip_existing: true
+  
+  # Delay between API calls (milliseconds)
+  api_delay: 100
+  
+  # Maximum retries for failed requests
+  max_retries: 3
+  
+  # Dry run mode (preview without creating)
+  dry_run: false

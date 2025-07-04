@@ -1,6 +1,7 @@
 # 환경 설정 파일
 Scripts/config/gitlab.env
 *.env
+*.env.local
 
 # 로그 파일
 Scripts/logs/
@@ -11,25 +12,47 @@ log/
 backups/
 gitlab-clones/
 *.bak
+*.backup
+*_backup/
 
 # macOS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 
 # 편집기
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # 임시 파일
 *.tmp
-*~
+*.temp
+tmp/
+temp/
 
 # Python (스크립트에서 사용할 경우)
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+env/
+venv/
+.venv
 
 # 테스트 출력
 test-output/
 coverage/
+
+# GitLab exports
+*.tar.gz
+exports/
+
+# Sensitive configuration
+config/secrets/
+config/credentials/

@@ -1,0 +1,148 @@
+# GitLab Projects Bulk Configuration (YAML)
+# This file defines projects to be created in multiple groups using group IDs
+
+# Default settings for all projects (can be overridden per project)
+defaults:
+  visibility: private
+  issues_enabled: true
+  wiki_enabled: false
+  merge_requests_enabled: true
+  builds_enabled: true
+  snippets_enabled: true
+  container_registry_enabled: false
+  packages_enabled: false
+  pages_enabled: false
+  default_branch: "main"
+  initialize_with_readme: true
+  auto_devops_enabled: false
+
+# Projects grouped by their target group ID
+projects:
+  # Frontend team projects (group_id: 110)
+  - group_id: 110
+    projects:
+      - name: "web-main"
+        description: "메인 웹사이트 프로젝트"
+        topics: ["frontend", "react", "typescript"]
+        visibility: internal
+        settings:
+          pages_enabled: true
+          
+      - name: "web-admin"
+        description: "관리자 대시보드"
+        topics: ["frontend", "vue", "admin"]
+        
+      - name: "design-system"
+        description: "공통 UI 컴포넌트 라이브러리"
+        topics: ["design-system", "storybook"]
+        settings:
+          packages_enabled: true
+          wiki_enabled: true
+
+  # Backend API team projects (group_id: 120)
+  - group_id: 120
+    projects:
+      - name: "api-gateway"
+        description: "API 게이트웨이 서비스"
+        topics: ["backend", "nodejs", "gateway"]
+        visibility: internal
+        settings:
+          container_registry_enabled: true
+          
+      - name: "api-auth"
+        description: "인증/인가 서비스"
+        topics: ["backend", "security", "oauth"]
+        settings:
+          security_and_compliance_enabled: true
+          
+      - name: "api-payment"
+        description: "결제 처리 서비스"
+        topics: ["backend", "payment", "fintech"]
+        visibility: private
+
+  # Data/ML team projects (group_id: 132)  
+  - group_id: 132
+    projects:
+      - name: "data-pipeline"
+        description: "실시간 데이터 처리 파이프라인"
+        topics: ["data", "spark", "kafka"]
+        settings:
+          container_registry_enabled: true
+          
+      - name: "ml-recommendation"
+        description: "추천 시스템 ML 모델"
+        topics: ["ml", "python", "tensorflow"]
+        settings:
+          lfs_enabled: true
+          
+      - name: "analytics-dashboard"
+        description: "비즈니스 분석 대시보드"
+        topics: ["analytics", "tableau", "bi"]
+        visibility: internal
+
+# Branch protection rules to apply after project creation
+branch_protection:
+  # Apply to all projects by default
+  default:
+    branch: "main"
+    push_access_level: "developer"
+    merge_access_level: "maintainer"
+    unprotect_access_level: "maintainer"
+    allow_force_push: false
+    code_owner_approval_required: true
+    
+  # Specific rules for certain projects
+  overrides:
+    - project_name: "api-payment"
+      branch: "main"
+      push_access_level: "no_one"
+      merge_access_level: "maintainer"
+      required_approvals: 2
+
+# CI/CD variables to set for projects
+ci_variables:
+  # Global variables for all projects
+  global:
+    - key: "DEPLOY_ENV"
+      value: "production"
+      protected: true
+      masked: false
+      
+    - key: "DOCKER_REGISTRY"
+      value: "registry.gitlab.com"
+      protected: false
+      masked: false
+      
+  # Project-specific variables
+  project_specific:
+    - project_name: "api-gateway"
+      variables:
+        - key: "GATEWAY_PORT"
+          value: "8080"
+          
+    - project_name: "api-payment"
+      variables:
+        - key: "PAYMENT_API_KEY"
+          value: "MASKED_VALUE"
+          protected: true
+          masked: true
+
+# Advanced options
+options:
+  # Continue on error for bulk operations
+  continue_on_error: true
+  
+  # Skip if project already exists
+  skip_existing: true
+  
+  # Delay between API calls (milliseconds)
+  api_delay: 200
+  
+  # Maximum retries for failed requests
+  max_retries: 3
+  
+  # Create projects in parallel (max workers)
+  parallel_workers: 5
+  
+  # Dry run mode (preview without creating)
+  dry_run: false

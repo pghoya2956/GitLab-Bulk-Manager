@@ -29,6 +29,16 @@ log() {
                 echo -e "${GREEN}[$timestamp] [INFO] $message${NC}"
             fi
             ;;
+        SUCCESS)
+            if [[ "$LOG_LEVEL" != "ERROR" && "$LOG_LEVEL" != "WARN" ]]; then
+                echo -e "${GREEN}[$timestamp] [SUCCESS] ✓ $message${NC}"
+            fi
+            ;;
+        DRY-RUN)
+            if [[ "$LOG_LEVEL" != "ERROR" && "$LOG_LEVEL" != "WARN" ]]; then
+                echo -e "${BLUE}[$timestamp] [DRY-RUN] $message${NC}"
+            fi
+            ;;
         DEBUG)
             if [[ "$LOG_LEVEL" == "DEBUG" ]]; then
                 echo -e "${BLUE}[$timestamp] [DEBUG] $message${NC}"
@@ -70,7 +80,15 @@ load_config() {
     log DEBUG "설정 파일 로드 완료: $config_file"
 }
 
-# GitLab API 호출 함수
+# Rate limiting variables
+RATE_LIMIT_REMAINING=""
+RATE_LIMIT_RESET=""
+LAST_API_CALL=0
+API_RETRY_COUNT=0
+MAX_API_RETRIES=${MAX_API_RETRIES:-3}
+API_RETRY_DELAY=${API_RETRY_DELAY:-2}
+
+# GitLab API 호출 함수 (rate limiting 포함)
 gitlab_api() {
     local method=$1
     local endpoint=$2
@@ -82,18 +100,71 @@ gitlab_api() {
         -w "\n%{http_code}"
         -X "$method"
         -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}"
+        -D /tmp/gitlab_headers_$$
     )
     
     if [[ -n "$data" ]]; then
         curl_opts+=(-H "Content-Type: application/json" -d "$data")
     fi
     
+    # Rate limiting delay
+    local current_time=$(date +%s)
+    local time_since_last=$((current_time - LAST_API_CALL))
+    if [[ $time_since_last -lt 1 ]]; then
+        sleep 0.5  # Minimum 500ms between calls
+    fi
+    
     log DEBUG "API 호출: $method $url"
     
-    local response=$(curl "${curl_opts[@]}" "$url")
-    local http_code=$(echo "$response" | tail -n1)
-    local body=$(echo "$response" | sed '$d')
+    local attempt=1
+    while [[ $attempt -le $MAX_API_RETRIES ]]; do
+        local response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null)
+        local http_code=$(echo "$response" | tail -n1)
+        local body=$(echo "$response" | sed '$d')
+        
+        # Parse rate limit headers
+        if [[ -f /tmp/gitlab_headers_$$ ]]; then
+            RATE_LIMIT_REMAINING=$(grep -i "^RateLimit-Remaining:" /tmp/gitlab_headers_$$ | awk '{print $2}' | tr -d '\r')
+            RATE_LIMIT_RESET=$(grep -i "^RateLimit-Reset:" /tmp/gitlab_headers_$$ | awk '{print $2}' | tr -d '\r')
+            rm -f /tmp/gitlab_headers_$$
+        fi
+        
+        # Handle rate limiting (429) and server errors (5xx)
+        if [[ $http_code -eq 429 ]]; then
+            local wait_time=60  # Default wait time
+            if [[ -n "$RATE_LIMIT_RESET" ]]; then
+                wait_time=$((RATE_LIMIT_RESET - current_time + 1))
+                if [[ $wait_time -lt 1 ]]; then
+                    wait_time=60
+                fi
+            fi
+            log WARN "Rate limit reached. Waiting ${wait_time}s..."
+            sleep $wait_time
+            ((attempt++))
+            continue
+        elif [[ $http_code -ge 500 ]] && [[ $http_code -lt 600 ]]; then
+            if [[ $attempt -lt $MAX_API_RETRIES ]]; then
+                local retry_wait=$((API_RETRY_DELAY * attempt))
+                log WARN "Server error $http_code. Retrying in ${retry_wait}s... (attempt $attempt/$MAX_API_RETRIES)"
+                sleep $retry_wait
+                ((attempt++))
+                continue
+            fi
+        fi
+        
+        # Success or client error - don't retry
+        LAST_API_CALL=$(date +%s)
+        
+        # Log rate limit info if low
+        if [[ -n "$RATE_LIMIT_REMAINING" ]] && [[ $RATE_LIMIT_REMAINING -lt 100 ]]; then
+            log WARN "Rate limit remaining: $RATE_LIMIT_REMAINING"
+        fi
+        
+        echo "$body"
+        return $http_code
+    done
     
+    # All retries exhausted
     echo "$body"
     return $http_code
 }
@@ -211,4 +282,57 @@ init_script() {
     if is_dry_run; then
         log WARN "DRY-RUN 모드가 활성화되었습니다. 실제 변경사항은 적용되지 않습니다."
     fi
+}
+
+# Exponential backoff 함수
+exponential_backoff() {
+    local attempt=$1
+    local max_wait=${2:-300}  # Maximum wait time in seconds (default: 5 minutes)
+    
+    # Calculate wait time: 2^attempt seconds, capped at max_wait
+    local wait_time=$((2 ** attempt))
+    if [[ $wait_time -gt $max_wait ]]; then
+        wait_time=$max_wait
+    fi
+    
+    # Add jitter (0-25% of wait time)
+    local jitter=$((RANDOM % (wait_time / 4 + 1)))
+    wait_time=$((wait_time + jitter))
+    
+    echo $wait_time
+}
+
+# Batch operation helper
+batch_operation() {
+    local operation_name=$1
+    local -n items=$2  # Name reference to array
+    local batch_size=${3:-10}
+    local operation_func=$4
+    
+    local total=${#items[@]}
+    local processed=0
+    
+    log INFO "Starting batch operation: $operation_name (Total: $total, Batch size: $batch_size)"
+    
+    for ((i=0; i<total; i+=batch_size)); do
+        local batch_end=$((i + batch_size))
+        if [[ $batch_end -gt $total ]]; then
+            batch_end=$total
+        fi
+        
+        log INFO "Processing batch $((i/batch_size + 1)) (items $((i+1))-$batch_end of $total)"
+        
+        for ((j=i; j<batch_end; j++)); do
+            $operation_func "${items[$j]}" || true
+            ((processed++))
+            show_progress $processed $total "$operation_name"
+        done
+        
+        # Rate limit between batches
+        if [[ $batch_end -lt $total ]]; then
+            sleep 1
+        fi
+    done
+    
+    log SUCCESS "$operation_name completed: $processed items processed"
 }
