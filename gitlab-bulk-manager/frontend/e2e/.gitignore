@@ -1,0 +1,78 @@
+# Playwright test results
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Screenshots and videos
+screenshots/
+videos/
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.webm
+
+# Test artifacts
+artifacts/
+downloads/
+traces/
+*.trace.zip
+
+# Coverage
+coverage/
+*.lcov
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test data
+test-data/
+*.test.json
+*.test.csv
+
+# Failed test outputs
+failed-tests/
+retry-results/
+
+# Performance results
+performance/
+lighthouse-reports/
+
+# Debug files
+*.har
+*.debug
+
+# Local test configuration
+local.config.ts
+local.config.js
+
+# Node modules (if separate from main)
+node_modules/
+
+# Report outputs
+reports/
+*.html
+!*.spec.ts
+!*.spec.js

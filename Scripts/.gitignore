@@ -1,0 +1,81 @@
+# Configuration files with sensitive data
+config/gitlab.env
+config/*.env
+!config/*.env.example
+
+# Test configuration files
+config/test-*.txt
+config/test-*.yaml
+config/test-*.yml
+
+# Log files
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Backup files
+*.backup
+*.bak
+backups/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Output directories
+output/
+exports/
+downloads/
+
+# Python cache (if any Python scripts added)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Shell script debugging
+*.debug
+
+# Local test data
+test-data/
+sandbox/
+
+# Generated reports
+reports/
+*.report
+*.csv
+*.xlsx
+
+# Credentials and tokens
+credentials/
+tokens/
+*.key
+*.pem
+*.crt
+
+# Lock files
+*.lock
+.lock
+
+# Custom ignore patterns
+.ignore
+.local/
