@@ -68,7 +68,12 @@
       "mcp__zen__analyze",
       "Bash(diff:*)",
       "Bash(echo)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(./start.sh:*)",
+      "mcp__zen__codereview",
+      "Bash(claude --version)",
+      "Bash(export TERM=xterm-256color)",
+      "Bash(claude doctor)"
     ],
     "deny": []
   }

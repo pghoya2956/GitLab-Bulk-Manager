@@ -1,0 +1,31 @@
+{
+  "name": "gitlab-bulk-manager-backend",
+  "version": "1.0.0",
+  "description": "Backend proxy server for GitLab Bulk Manager",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "connect-redis": "^7.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-session": "^1.17.3",
+    "helmet": "^7.1.0",
+    "js-yaml": "^4.1.0",
+    "redis": "^4.6.10",
+    "socket.io": "^4.5.4",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.4",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2"
+  }
+}

@@ -1,58 +1,87 @@
-# 환경 설정 파일
-Scripts/config/gitlab.env
-*.env
-*.env.local
+# Dependencies
+node_modules/
+**/node_modules/
 
-# 로그 파일
-Scripts/logs/
-log/
+# Environment files
+.env
+.env.*
+!.env.example
+**/.env
+!**/.env.example
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# 백업 파일
-backups/
-gitlab-clones/
-*.bak
-*.backup
-*_backup/
-
-# macOS
+# OS files
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
+Thumbs.db
 
-# 편집기
-.vscode/
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
 *~
 
-# 임시 파일
-*.tmp
-*.temp
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+
+# Test coverage
+coverage/
+**/coverage/
+*.lcov
+
+# Temporary files
 tmp/
 temp/
+*.tmp
+*.temp
 
-# Python (스크립트에서 사용할 경우)
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-.venv
+# Cache directories
+.cache/
+**/.cache/
 
-# 테스트 출력
-test-output/
-coverage/
+# TypeScript
+*.tsbuildinfo
 
-# GitLab exports
+# Backup files
+*.backup
+*.bak
+backups/
+
+# Test results
+test-results/
+playwright-report/
+**/test-results/
+
+# Package files
+*.tgz
+*.zip
 *.tar.gz
-exports/
 
-# Sensitive configuration
-config/secrets/
-config/credentials/
+# Misc
+.vercel
+
+# Project specific
+Sessions/
+uploads/
+downloads/
+exports/
+generated/
+
+# Local development
+.local/
+*.local
