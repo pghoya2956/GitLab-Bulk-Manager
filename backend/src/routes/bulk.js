@@ -26,20 +26,27 @@ async function retryRequest(fn, retries = MAX_RETRIES) {
 }
 
 // Helper: GitLab API 호출
-async function gitlabRequest(req, method, path, data = null) {
+async function gitlabRequest(req, method, path, data = null, includeHeaders = false) {
   const token = req.session.gitlabToken;
-  const baseURL = process.env.GITLAB_API_URL || 'https://gitlab.com/api/v4';
+  const baseURL = req.session.gitlabUrl || process.env.GITLAB_API_URL || 'https://gitlab.com';
   
   return retryRequest(async () => {
     const response = await axios({
       method,
-      url: `${baseURL}${path}`,
+      url: `${baseURL}/api/v4${path}`,
       headers: {
         'PRIVATE-TOKEN': token,
         'Content-Type': 'application/json'
       },
       data
     });
+    
+    if (includeHeaders) {
+      return {
+        data: response.data,
+        headers: response.headers
+      };
+    }
     return response.data;
   });
 }
@@ -290,7 +297,7 @@ router.get('/health-check', async (req, res) => {
 
     // 프로젝트 통계
     try {
-      const projects = await gitlabRequest(req, 'GET', '/projects?per_page=1');
+      const projects = await gitlabRequest(req, 'GET', '/projects?per_page=1', null, true);
       healthData.components.projects = {
         status: 'healthy',
         totalCount: parseInt(projects.headers?.['x-total'] || '0')
@@ -304,7 +311,7 @@ router.get('/health-check', async (req, res) => {
 
     // 그룹 통계
     try {
-      const groups = await gitlabRequest(req, 'GET', '/groups?per_page=1');
+      const groups = await gitlabRequest(req, 'GET', '/groups?per_page=1', null, true);
       healthData.components.groups = {
         status: 'healthy',
         totalCount: parseInt(groups.headers?.['x-total'] || '0')

@@ -73,7 +73,9 @@
       "mcp__zen__codereview",
       "Bash(claude --version)",
       "Bash(export TERM=xterm-256color)",
-      "Bash(claude doctor)"
+      "Bash(claude doctor)",
+      "Bash(./stop.sh)",
+      "WebFetch(domain:docs.gitlab.com)"
     ],
     "deny": []
   }

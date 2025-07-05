@@ -39,24 +39,42 @@ export const gitlabProxy = async (req, res, next) => {
     const response = await axios(config);
 
     // Forward response headers
+    const paginationHeaders = {};
     if (response.headers['x-total']) {
       res.set('X-Total-Count', response.headers['x-total']);
+      paginationHeaders.total = parseInt(response.headers['x-total']);
     }
     if (response.headers['x-page']) {
       res.set('X-Page', response.headers['x-page']);
+      paginationHeaders.page = parseInt(response.headers['x-page']);
     }
     if (response.headers['x-per-page']) {
       res.set('X-Per-Page', response.headers['x-per-page']);
+      paginationHeaders.perPage = parseInt(response.headers['x-per-page']);
     }
     if (response.headers['x-next-page']) {
       res.set('X-Next-Page', response.headers['x-next-page']);
+      paginationHeaders.nextPage = parseInt(response.headers['x-next-page']);
     }
     if (response.headers['x-prev-page']) {
       res.set('X-Prev-Page', response.headers['x-prev-page']);
+      paginationHeaders.prevPage = parseInt(response.headers['x-prev-page']);
+    }
+    if (response.headers['x-total-pages']) {
+      res.set('X-Total-Pages', response.headers['x-total-pages']);
+      paginationHeaders.totalPages = parseInt(response.headers['x-total-pages']);
     }
 
     // Send response
-    res.status(response.status).json(response.data);
+    // If client requests pagination info in body (via query param), include it
+    if (req.query._includePagination === 'true') {
+      res.status(response.status).json({
+        data: response.data,
+        pagination: paginationHeaders
+      });
+    } else {
+      res.status(response.status).json(response.data);
+    }
 
   } catch (error) {
     if (error.response) {

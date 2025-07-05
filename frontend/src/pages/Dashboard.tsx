@@ -20,6 +20,8 @@ import { useTranslation } from 'react-i18next';
 import { gitlabService } from '../services/gitlab';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import axios from 'axios';
+import { PermissionTree } from '../components/PermissionTree';
 import GroupIcon from '@mui/icons-material/AccountTree';
 import ProjectIcon from '@mui/icons-material/Code';
 import ImportExportIcon from '@mui/icons-material/ImportExport';
@@ -31,56 +33,11 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-interface DashboardStats {
-  groups: number;
-  projects: number;
-  isLoading: boolean;
-  error: string | null;
-}
 
 export const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useSelector((state: RootState) => state.auth.user);
-  const [stats, setStats] = useState<DashboardStats>({ 
-    groups: 0, 
-    projects: 0, 
-    isLoading: true,
-    error: null 
-  });
-
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    try {
-      setStats(prev => ({ ...prev, isLoading: true, error: null }));
-      
-      // Simple count request using proxy
-      const groups = await gitlabService.getGroups({ per_page: 1 });
-      const projects = await gitlabService.getProjects({ per_page: 1 });
-
-      // For now, just use the array length as we don't have header access
-      // In a real implementation, we would need to handle pagination or get totals from API
-      const groupsCount = groups.length;
-      const projectsCount = projects.length;
-
-      setStats({
-        groups: groupsCount,
-        projects: projectsCount,
-        isLoading: false,
-        error: null
-      });
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-      setStats(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: 'Failed to load statistics' 
-      }));
-    }
-  };
 
   const quickActions = [
     {
@@ -108,7 +65,7 @@ export const Dashboard: React.FC = () => {
 
   const gettingStartedSteps = [
     { text: 'GitLab 토큰으로 로그인', completed: true },
-    { text: 'Groups & Projects에서 구조 확인', completed: stats.groups > 0 },
+    { text: 'Groups & Projects에서 구조 확인', completed: true },
     { text: 'Bulk Import로 리소스 생성', completed: false },
     { text: 'System Health에서 상태 모니터링', completed: false }
   ];
@@ -129,52 +86,12 @@ export const Dashboard: React.FC = () => {
         </Typography>
       </Paper>
 
-      {/* 에러 메시지 */}
-      {stats.error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {stats.error}
-        </Alert>
-      )}
+      {/* Permission Tree */}
+      <Box sx={{ mb: 3 }}>
+        <PermissionTree />
+      </Box>
 
       <Grid container spacing={3}>
-        {/* 통계 카드 */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
-                    Total Groups
-                  </Typography>
-                  <Typography variant="h3">
-                    {stats.isLoading ? '-' : stats.groups}
-                  </Typography>
-                </Box>
-                <GroupIcon sx={{ fontSize: 60, color: 'primary.main', opacity: 0.3 }} />
-              </Box>
-              {stats.isLoading && <LinearProgress sx={{ mt: 2 }} />}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Typography color="text.secondary" gutterBottom>
-                    Total Projects
-                  </Typography>
-                  <Typography variant="h3">
-                    {stats.isLoading ? '-' : stats.projects}
-                  </Typography>
-                </Box>
-                <ProjectIcon sx={{ fontSize: 60, color: 'secondary.main', opacity: 0.3 }} />
-              </Box>
-              {stats.isLoading && <LinearProgress sx={{ mt: 2 }} />}
-            </CardContent>
-          </Card>
-        </Grid>
 
         {/* Quick Actions */}
         <Grid item xs={12}>
