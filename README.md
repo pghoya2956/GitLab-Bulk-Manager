@@ -18,7 +18,7 @@ git clone <repository-url>
 cd .
 
 # 2. 자동 실행
-./start.sh
+./manage.sh start
 ```
 
 브라우저에서 [http://localhost:3000](http://localhost:3000) 접속
@@ -56,7 +56,20 @@ cd .
 
 ### 자동 설정 (권장)
 ```bash
-./start.sh
+# 서버 시작
+./manage.sh start
+
+# 서버 중지
+./manage.sh stop  
+
+# 서버 재시작
+./manage.sh restart
+
+# 상태 확인
+./manage.sh status
+
+# 로그 보기
+./manage.sh logs
 ```
 
 ### 수동 설정

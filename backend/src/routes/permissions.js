@@ -43,11 +43,30 @@ router.get('/overview', async (req, res) => {
       groups.map(async (group) => {
         try {
           // Get group members count (including inherited members)
-          const membersResponse = await axios.get(`${baseURL}/api/v4/groups/${group.id}/members/all`, {
-            headers: { 'PRIVATE-TOKEN': token },
-            params: { per_page: 1 }
-          });
-          const memberCount = parseInt(membersResponse.headers['x-total'] || '0');
+          let memberCount = 0;
+          try {
+            const membersResponse = await axios.get(`${baseURL}/api/v4/groups/${group.id}/members/all`, {
+              headers: { 'PRIVATE-TOKEN': token },
+              params: { per_page: 1 }
+            });
+            memberCount = parseInt(membersResponse.headers['x-total'] || '0');
+          } catch (error) {
+            // If members/all fails (e.g., 404 for subgroups), try regular members endpoint
+            if (error.response?.status === 404) {
+              try {
+                const fallbackResponse = await axios.get(`${baseURL}/api/v4/groups/${group.id}/members`, {
+                  headers: { 'PRIVATE-TOKEN': token },
+                  params: { per_page: 1 }
+                });
+                memberCount = parseInt(fallbackResponse.headers['x-total'] || '0');
+                logger.warn(`Group ${group.id} members/all returned 404, using direct members count: ${memberCount}`);
+              } catch (fallbackError) {
+                logger.error(`Failed to get member count for group ${group.id}:`, fallbackError.message);
+              }
+            } else {
+              logger.error(`Failed to get member count for group ${group.id}:`, error.message);
+            }
+          }
 
           // Get user's access level in this group
           let userAccess = null;
@@ -76,11 +95,30 @@ router.get('/overview', async (req, res) => {
           const projects = await Promise.all(
             projectsResponse.data.map(async (project) => {
               // Get project members count (including inherited members)
-              const projectMembersResponse = await axios.get(`${baseURL}/api/v4/projects/${project.id}/members/all`, {
-                headers: { 'PRIVATE-TOKEN': token },
-                params: { per_page: 1 }
-              });
-              const projectMemberCount = parseInt(projectMembersResponse.headers['x-total'] || '0');
+              let projectMemberCount = 0;
+              try {
+                const projectMembersResponse = await axios.get(`${baseURL}/api/v4/projects/${project.id}/members/all`, {
+                  headers: { 'PRIVATE-TOKEN': token },
+                  params: { per_page: 1 }
+                });
+                projectMemberCount = parseInt(projectMembersResponse.headers['x-total'] || '0');
+              } catch (error) {
+                // If members/all fails (e.g., 404), try regular members endpoint
+                if (error.response?.status === 404) {
+                  try {
+                    const fallbackResponse = await axios.get(`${baseURL}/api/v4/projects/${project.id}/members`, {
+                      headers: { 'PRIVATE-TOKEN': token },
+                      params: { per_page: 1 }
+                    });
+                    projectMemberCount = parseInt(fallbackResponse.headers['x-total'] || '0');
+                    logger.warn(`Project ${project.id} members/all returned 404, using direct members count: ${projectMemberCount}`);
+                  } catch (fallbackError) {
+                    logger.error(`Failed to get member count for project ${project.id}:`, fallbackError.message);
+                  }
+                } else {
+                  logger.error(`Failed to get member count for project ${project.id}:`, error.message);
+                }
+              }
 
               return {
                 id: project.id,

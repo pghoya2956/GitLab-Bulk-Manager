@@ -16,6 +16,7 @@ import bulkRoutes from './routes/bulk.js';
 import testRoutes from './routes/test.js';
 import statsRoutes from './routes/stats.js';
 import permissionsRoutes from './routes/permissions.js';
+import docsRoutes from './routes/docs.js';
 import { authenticateToken } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { setupWebSocket } from './services/websocket.js';
@@ -51,6 +52,7 @@ app.use(session(sessionConfig));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/docs', docsRoutes); // Documentation doesn't require auth
 app.use('/api/stats', authenticateToken, statsRoutes);
 app.use('/api/permissions', authenticateToken, permissionsRoutes);
 app.use('/api/gitlab/bulk', authenticateToken, bulkRoutes);

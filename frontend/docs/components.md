@@ -51,6 +51,31 @@ The main application layout with navigation header.
 </Layout>
 ```
 
+### PermissionTree
+
+A comprehensive permission visualization component that displays user access levels across all GitLab groups and projects.
+
+#### Features
+- Hierarchical tree view of permissions
+- Color-coded access level badges
+- Search functionality with auto-expansion
+- Member count indicators
+- Visibility icons
+
+#### Usage
+```tsx
+<PermissionTree />
+```
+
+#### Access Level Colors
+- Owner: `#ff6b6b` (red)
+- Maintainer: `#4dabf7` (blue)
+- Developer: `#51cf66` (green)
+- Reporter: `#868e96` (gray)
+- Guest: `#adb5bd` (light gray)
+
+See [Permission Tree Documentation](./permission-tree.md) for detailed information.
+
 ## Bulk Operation Components
 
 ### ImportGroups

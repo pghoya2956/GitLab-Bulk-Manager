@@ -6,6 +6,7 @@ The main dashboard provides an overview of your GitLab instance:
 - Total number of projects  
 - Active users count
 - Quick access to all major features
+- Permission overview with PermissionTree component
 
 ## Group Management
 
@@ -96,6 +97,24 @@ Track long-running operations:
 - Project batch creation
 - Member synchronization
 - Backup operations
+
+## Permission Management
+
+### Permission Tree View
+The PermissionTree component provides a comprehensive view of user permissions:
+- **Hierarchical Display**: Shows all groups and projects with your access levels
+- **Access Level Badges**: Color-coded badges showing your role (Owner, Maintainer, Developer, Reporter, Guest)
+- **Member Counts**: See how many members each group/project has
+- **Visibility Indicators**: Icons showing if resources are public, internal, or private
+- **Search and Filter**: Quickly find specific groups or projects
+- **Auto-expansion**: Search results automatically expand parent groups
+
+### Permission Overview Features
+- View all your GitLab permissions in one place
+- Understand your access levels across the organization
+- Identify where you have elevated privileges
+- Quick navigation to groups and projects
+- Real-time permission data from GitLab API
 
 ## Search and Filter
 

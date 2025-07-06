@@ -8,13 +8,12 @@ import { SnackbarProvider } from 'notistack';
 import { store } from './store';
 import { theme } from './theme';
 import { Layout } from './components/Layout';
-import { Dashboard } from './pages/Dashboard';
 import { GroupsProjects } from './pages/GroupsProjects';
-import { BulkImport } from './pages/BulkImport';
 import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
 import { PrivateRoute } from './components/PrivateRoute';
 import { SystemHealth } from './pages/SystemHealth';
+import { Documentation } from './pages/Documentation';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WebSocketProvider } from './components/WebSocketProvider';
 import './services/axiosConfig';
@@ -41,16 +40,17 @@ function App() {
                   <Routes>
                     <Route path="/login" element={<Login />} />
                     <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-                    <Route index element={<Navigate to="/dashboard" replace />} />
-                    <Route path="dashboard" element={<Dashboard />} />
+                    <Route index element={<Navigate to="/groups-projects" replace />} />
+                    <Route path="dashboard" element={<Navigate to="/groups-projects" replace />} />
                     <Route path="groups" element={<Navigate to="/groups-projects" replace />} />
                     <Route path="projects" element={<Navigate to="/groups-projects" replace />} />
                     <Route path="groups-projects" element={<GroupsProjects />} />
-                    <Route path="bulk-operations" element={<Navigate to="/bulk-import" replace />} />
-                    <Route path="bulk-import" element={<BulkImport />} />
+                    <Route path="bulk-operations" element={<Navigate to="/groups-projects" replace />} />
+                    <Route path="bulk-import" element={<Navigate to="/groups-projects" replace />} />
                     <Route path="monitoring" element={<Navigate to="/system-health" replace />} />
                     <Route path="system-health" element={<SystemHealth />} />
                     <Route path="settings" element={<Settings />} />
+                    <Route path="docs" element={<Documentation />} />
                   </Route>
                 </Routes>
               </Router>

@@ -1,25 +1,92 @@
 # Frontend Documentation
 
-> ⚠️ **Note**: The documentation has been reorganized. Please refer to the centralized documentation in the project root.
+Comprehensive documentation for the GitLab Bulk Manager frontend application.
 
-## 📚 Documentation Location
+## 📚 Documentation Index
 
-All documentation has been moved to the central `/docs` directory for better organization:
+### Getting Started
+- **[Getting Started Guide](./getting-started.md)** - Installation, setup, and first steps
+- **[Development Guide](./development.md)** - Development environment setup and workflow
 
-- **Main Documentation**: [/docs/README.md](../../docs/README.md)
-- **Frontend Architecture**: [/docs/architecture/frontend.md](../../docs/architecture/frontend.md)
-- **Development Guide**: [/docs/development/frontend-guide.md](../../docs/development/frontend-guide.md)
-- **Component Documentation**: [/docs/features/README.md](../../docs/features/README.md)
-- **Testing Guide**: [/docs/development/testing.md](../../docs/development/testing.md)
+### Architecture & Design
+- **[Architecture Overview](./architecture.md)** - System architecture, patterns, and design decisions
+- **[Components Documentation](./components.md)** - Detailed component reference and usage
+- **[API Integration](./api-integration.md)** - Backend API communication and service layer
 
-## Legacy Documentation
+### Features
+- **[Features Overview](./features.md)** - Complete feature documentation
+- **[Permission Tree](./permission-tree.md)** - User permissions visualization component
 
-The following files in this directory are kept for historical reference but may be outdated:
-- `architecture.md` - See [/docs/architecture/frontend.md](../../docs/architecture/frontend.md)
-- `components.md` - See feature documentation in [/docs/features/](../../docs/features/)
-- `api-integration.md` - See [/docs/api/README.md](../../docs/api/README.md)
-- `development.md` - See [/docs/development/frontend-guide.md](../../docs/development/frontend-guide.md)
-- `testing.md` - See [/docs/development/testing.md](../../docs/development/testing.md)
-- `deployment.md` - See [/docs/deployment/](../../docs/deployment/)
+### Development & Testing
+- **[Testing Guide](./testing.md)** - Unit, integration, and E2E testing strategies
+- **[Deployment Guide](./deployment.md)** - Production deployment and DevOps
 
-Please use the centralized documentation for the most up-to-date information.
+## 🏗️ Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/       # Reusable UI components
+│   │   ├── GitLabTree.tsx    # Hierarchical tree view
+│   │   ├── PermissionTree.tsx # Permission visualization
+│   │   ├── Layout.tsx        # App layout wrapper
+│   │   └── bulk/            # Bulk operation components
+│   ├── pages/           # Route page components
+│   ├── services/        # API service layer
+│   ├── store/          # Redux state management
+│   │   └── slices/     # Redux slices
+│   ├── hooks/          # Custom React hooks
+│   ├── types/          # TypeScript type definitions
+│   └── utils/          # Utility functions
+├── public/             # Static assets
+├── docs/              # This documentation
+└── e2e/               # End-to-end tests
+```
+
+## 🚀 Key Features
+
+- **GitLab Integration**: Full integration with GitLab API for groups, projects, and members management
+- **Bulk Operations**: CSV-based bulk import for groups, projects, and members
+- **Permission Management**: Visual permission tree showing user access levels
+- **Real-time Updates**: WebSocket integration for job progress tracking
+- **Modern UI**: Material-UI based responsive interface
+
+## 🛠️ Technology Stack
+
+- **React 18** with TypeScript
+- **Redux Toolkit** for state management
+- **Material-UI v5** for UI components
+- **Vite** for build tooling
+- **React Router v6** for routing
+- **Axios** for HTTP requests
+- **Socket.io** for WebSocket communication
+
+## 📋 Documentation Status
+
+| Document | Status | Last Updated |
+|----------|--------|-------------|
+| Getting Started | ⚠️ Incomplete | Needs completion |
+| Architecture | ✅ Complete | Current |
+| Components | ⚠️ Needs Update | Missing PermissionTree |
+| API Integration | ✅ Complete | Current |
+| Features | ✅ Complete | Current |
+| Development | ✅ Complete | Current |
+| Testing | ✅ Complete | Current |
+| Deployment | ✅ Complete | Current |
+| Permission Tree | ❌ Missing | To be created |
+
+## 🔄 Keeping Documentation Updated
+
+When making changes to the codebase:
+1. Update relevant documentation files
+2. Add examples for new features
+3. Update the status table above
+4. Ensure code examples are tested and working
+
+## 📞 Getting Help
+
+If you need help:
+1. Check the relevant documentation section
+2. Look for examples in the codebase
+3. Review the test files for usage patterns
+4. Create an issue for documentation improvements

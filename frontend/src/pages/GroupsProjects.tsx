@@ -12,6 +12,9 @@ import {
   Alert,
   Fade,
   ToggleButton,
+  ToggleButtonGroup,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { gitlabService } from '../services/gitlab';
@@ -20,6 +23,8 @@ import { CreateProjectDialog } from '../components/CreateProjectDialog';
 import { CreateGroupDialog } from '../components/CreateGroupDialog';
 import { ConfirmTransferDialog } from '../components/ConfirmTransferDialog';
 import { ConfirmBulkTransferDialog } from '../components/ConfirmBulkTransferDialog';
+import { BulkImportDialog } from '../components/bulk/BulkImportDialog';
+import { BulkSettingsDialog } from '../components/bulk/BulkSettingsDialog';
 import { useNotification } from '../hooks/useNotification';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -30,6 +35,11 @@ import FolderIcon from '@mui/icons-material/Folder';
 import CodeIcon from '@mui/icons-material/Code';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import SettingsIcon from '@mui/icons-material/Settings';
+import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
+import UploadIcon from '@mui/icons-material/Upload';
+import SecurityIcon from '@mui/icons-material/Security';
 
 interface TreeNode {
   id: string;
@@ -51,8 +61,12 @@ export const GroupsProjects: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [showOnlyDeveloperPlus, setShowOnlyDeveloperPlus] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [bulkSettingsOpen, setBulkSettingsOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
+  const [bulkMenuAnchor, setBulkMenuAnchor] = useState<null | HTMLElement>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [expandedNodes, setExpandedNodes] = useState<string[]>([]);
   
@@ -80,15 +94,19 @@ export const GroupsProjects: React.FC = () => {
   };
 
   const handleDragDrop = useCallback((targetNode: TreeNode, draggedNode: TreeNode) => {
-    // In multi-select mode with checked items, handle bulk transfer
-    if (multiSelectMode && checkedNodes.length > 0) {
+    // Check if this is a bulk drag operation
+    if (multiSelectMode && checkedNodes.length > 0 && 
+        (checkedNodes.includes(draggedNode.id) || draggedNode.name.includes('selected items'))) {
       const checkedNodeObjects = checkedNodes
         .map(id => nodeMap[id])
         .filter(Boolean);
       
-      if (checkedNodeObjects.length > 0) {
+      // Ensure we don't include the target in the sources
+      const validSources = checkedNodeObjects.filter(node => node.id !== targetNode.id);
+      
+      if (validSources.length > 0) {
         setPendingBulkTransfer({
-          sources: checkedNodeObjects,
+          sources: validSources,
           target: targetNode,
         });
       }
@@ -232,6 +250,52 @@ export const GroupsProjects: React.FC = () => {
     handleMenuClose();
   };
 
+  const handleBulkDelete = async () => {
+    const selectedItems = checkedNodes
+      .map(id => nodeMap[id])
+      .filter(Boolean);
+
+    if (selectedItems.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to delete ${selectedItems.length} items? This action cannot be undone.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const items = selectedItems.map(item => ({
+        id: parseInt(item.id.replace(/^(group|project)-/, '')),
+        name: item.name,
+        type: item.type,
+      }));
+
+      const response = await gitlabService.bulkDelete(items);
+      
+      if (response.results.success.length > 0) {
+        showSuccess(`Successfully deleted ${response.results.success.length} items`);
+      }
+      if (response.results.failed.length > 0) {
+        showError(`Failed to delete ${response.results.failed.length} items`);
+      }
+      
+      setCheckedNodes([]);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Failed to delete items');
+    }
+    
+    setBulkMenuAnchor(null);
+  };
+
+  const handleBulkMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setBulkMenuAnchor(event.currentTarget);
+  };
+
+  const handleBulkMenuClose = () => {
+    setBulkMenuAnchor(null);
+  };
+
   const getSelectedGroup = () => {
     if (!selectedNode) return undefined;
     
@@ -264,10 +328,25 @@ export const GroupsProjects: React.FC = () => {
             Groups & Projects
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Click groups to expand/collapse • Drag items to reorganize
+            Click groups to expand/collapse • Drag items to reorganize • {showOnlyDeveloperPlus ? 'Showing Developer+ only' : 'Showing all access levels'}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          {/* Developer+ Filter Toggle */}
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showOnlyDeveloperPlus}
+                onChange={(e) => setShowOnlyDeveloperPlus(e.target.checked)}
+                size="small"
+              />
+            }
+            label={showOnlyDeveloperPlus ? "Developer+ only" : "All access levels"}
+            sx={{ mr: 2 }}
+          />
+
+          <Divider orientation="vertical" flexItem />
+
           {/* Multi-select Toggle */}
           <ToggleButton
             value="multiselect"
@@ -278,6 +357,15 @@ export const GroupsProjects: React.FC = () => {
           >
             {multiSelectMode ? <CheckBoxIcon /> : <DragIndicatorIcon />}
           </ToggleButton>
+          
+          {/* Bulk Import Button */}
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            onClick={() => setBulkImportOpen(true)}
+          >
+            Bulk Import
+          </Button>
           
           {/* Add Button with Menu */}
           <Button
@@ -318,8 +406,19 @@ export const GroupsProjects: React.FC = () => {
               >
                 Clear Selection
               </Button>
+              
+              {/* Bulk Actions Menu */}
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<MoreVertIcon />}
+                onClick={handleBulkMenuOpen}
+              >
+                Bulk Actions
+              </Button>
+              
               <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center', mx: 1 }}>
-                Drag selected items to a group to move them
+                Drag to move • Use bulk actions for settings
               </Typography>
             </Box>
           </Box>
@@ -356,7 +455,7 @@ export const GroupsProjects: React.FC = () => {
           </Box>
         )}
 
-        {/* Tree View */}
+        {/* Tree View with integrated permissions */}
         <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
           <GitLabTree
             refreshTrigger={refreshTrigger}
@@ -364,9 +463,20 @@ export const GroupsProjects: React.FC = () => {
             onDrop={handleDragDrop}
             selectedNodeId={selectedNode?.id}
             checkedNodes={multiSelectMode ? checkedNodes : undefined}
-            onCheckedNodesChange={multiSelectMode ? setCheckedNodes : undefined}
+            onCheckedNodesChange={multiSelectMode ? (ids: string[], nodes?: TreeNode[]) => {
+              setCheckedNodes(ids);
+              if (nodes) {
+                const newNodeMap: { [key: string]: TreeNode } = {};
+                nodes.forEach(node => {
+                  newNodeMap[node.id] = node;
+                });
+                setNodeMap(prev => ({ ...prev, ...newNodeMap }));
+              }
+            } : undefined}
             expanded={expandedNodes}
             onExpandedChange={setExpandedNodes}
+            showOnlyDeveloperPlus={showOnlyDeveloperPlus}
+            showPermissions={true}
           />
         </Box>
       </Paper>
@@ -415,6 +525,40 @@ export const GroupsProjects: React.FC = () => {
         </MenuItem>
       </Menu>
 
+      {/* Bulk Actions Menu */}
+      <Menu
+        anchorEl={bulkMenuAnchor}
+        open={Boolean(bulkMenuAnchor)}
+        onClose={handleBulkMenuClose}
+      >
+        <MenuItem 
+          onClick={() => {
+            setBulkSettingsOpen(true);
+            handleBulkMenuClose();
+          }}
+        >
+          <SettingsIcon sx={{ mr: 1 }} fontSize="small" />
+          Bulk Settings
+        </MenuItem>
+        <MenuItem 
+          onClick={() => {
+            handleBulkMenuClose();
+            // Trigger drag mode - items are already selected
+          }}
+        >
+          <DriveFileMoveIcon sx={{ mr: 1 }} fontSize="small" />
+          Move Selected Items
+        </MenuItem>
+        <Divider />
+        <MenuItem 
+          onClick={handleBulkDelete}
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
+          Delete Selected Items
+        </MenuItem>
+      </Menu>
+
       {/* Dialogs */}
       <CreateProjectDialog
         open={createProjectOpen}
@@ -455,6 +599,39 @@ export const GroupsProjects: React.FC = () => {
         sourceNodes={pendingBulkTransfer?.sources || []}
         targetNode={pendingBulkTransfer?.target || null}
         loading={transferLoading}
+      />
+
+      <BulkImportDialog
+        open={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        selectedGroup={selectedNode?.type === 'group' ? {
+          id: selectedNode.id,
+          name: selectedNode.name,
+          full_path: selectedNode.full_path,
+        } : undefined}
+        onSuccess={() => {
+          setBulkImportOpen(false);
+          setRefreshTrigger(prev => prev + 1);
+        }}
+      />
+
+      <BulkSettingsDialog
+        open={bulkSettingsOpen}
+        onClose={() => setBulkSettingsOpen(false)}
+        selectedItems={checkedNodes
+          .map(id => nodeMap[id])
+          .filter(Boolean)
+          .map(node => ({
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            full_path: node.full_path,
+          }))}
+        onSuccess={() => {
+          setBulkSettingsOpen(false);
+          setCheckedNodes([]);
+          setRefreshTrigger(prev => prev + 1);
+        }}
       />
     </Box>
   );

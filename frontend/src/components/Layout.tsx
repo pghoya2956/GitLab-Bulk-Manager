@@ -39,10 +39,9 @@ export const Layout: React.FC = () => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             GitLab Bulk Manager
           </Typography>
-          <Button color="inherit" onClick={() => navigate('/dashboard')}>Dashboard</Button>
           <Button color="inherit" onClick={() => navigate('/groups-projects')}>Groups & Projects</Button>
-          <Button color="inherit" onClick={() => navigate('/bulk-import')}>Bulk Import</Button>
           <Button color="inherit" onClick={() => navigate('/system-health')}>System Health</Button>
+          <Button color="inherit" onClick={() => navigate('/docs')}>Documentation</Button>
           <NotificationCenter />
           <IconButton
             size="large"

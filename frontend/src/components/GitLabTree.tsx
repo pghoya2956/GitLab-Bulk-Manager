@@ -8,6 +8,11 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import CodeIcon from '@mui/icons-material/Code';
 import { Box, Typography, Chip, CircularProgress, TextField, InputAdornment, Checkbox } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import GroupIcon from '@mui/icons-material/Group';
+import ShieldIcon from '@mui/icons-material/Shield';
+import PublicIcon from '@mui/icons-material/Public';
+import LockIcon from '@mui/icons-material/Lock';
+import BusinessIcon from '@mui/icons-material/Business';
 import { gitlabService } from '../services/gitlab';
 import { useNotification } from '../hooks/useNotification';
 
@@ -24,6 +29,12 @@ interface TreeNode {
   children?: string[]; // Changed to string[] to store child IDs
   hasChildren?: boolean;
   isLoading?: boolean;
+  // Permission fields
+  memberCount?: number;
+  userAccess?: {
+    access_level: number;
+    access_level_name: string;
+  };
 }
 
 interface GitLabTreeProps {
@@ -32,11 +43,64 @@ interface GitLabTreeProps {
   onDrop?: (targetNode: TreeNode, draggedNode: TreeNode) => void;
   selectedNodeId?: string;
   checkedNodes?: string[];
-  onCheckedNodesChange?: (nodeIds: string[]) => void;
+  onCheckedNodesChange?: (nodeIds: string[], nodes?: TreeNode[]) => void;
   expanded?: string[];
   onExpandedChange?: (nodeIds: string[]) => void;
   refreshTrigger?: number;
+  showOnlyDeveloperPlus?: boolean;
+  showPermissions?: boolean;
 }
+
+// Helper function to get access level color
+const getAccessLevelColor = (level: string): string => {
+  switch (level?.toLowerCase()) {
+    case 'owner':
+      return '#d32f2f'; // Stronger red
+    case 'maintainer':
+      return '#1976d2'; // Stronger blue
+    case 'developer':
+      return '#388e3c'; // Stronger green
+    case 'reporter':
+      return '#f57c00'; // Orange for better visibility
+    case 'guest':
+      return '#616161'; // Darker gray
+    default:
+      return '#9e9e9e';
+  }
+};
+
+// Helper function to get visibility icon
+const getVisibilityIcon = (visibility: string) => {
+  switch (visibility) {
+    case 'public':
+      return <PublicIcon sx={{ fontSize: 16 }} />;
+    case 'private':
+      return <LockIcon sx={{ fontSize: 16 }} />;
+    case 'internal':
+      return <BusinessIcon sx={{ fontSize: 16 }} />;
+    default:
+      return null;
+  }
+};
+
+// Helper function to get visibility color
+const getVisibilityColor = (visibility: string): { bgcolor: string, color: string } => {
+  switch (visibility) {
+    case 'public':
+      return { bgcolor: '#e8f5e9', color: '#2e7d32' };
+    case 'private':
+      return { bgcolor: '#fce4ec', color: '#c2185b' };
+    case 'internal':
+      return { bgcolor: '#fff3e0', color: '#f57c00' };
+    default:
+      return { bgcolor: '#f5f5f5', color: '#616161' };
+  }
+};
+
+// Helper function to check if access level is Developer+
+const isHighLevelAccess = (level: string): boolean => {
+  return ['owner', 'maintainer', 'developer'].includes(level?.toLowerCase() || '');
+};
 
 export const GitLabTree: React.FC<GitLabTreeProps> = ({
   onSelect,
@@ -48,6 +112,8 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
   expanded: controlledExpanded,
   onExpandedChange,
   refreshTrigger,
+  showOnlyDeveloperPlus = false,
+  showPermissions = true,
 }) => {
   const [nodes, setNodes] = useState<{ [key: string]: TreeNode }>({});
   const [rootNodes, setRootNodes] = useState<string[]>([]);
@@ -56,6 +122,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [draggedNode, setDraggedNode] = useState<TreeNode | null>(null);
   const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null);
+  const [permissionsData, setPermissionsData] = useState<any>(null);
   const { showError } = useNotification();
 
   // Use controlled expanded state if provided, otherwise use internal state
@@ -65,6 +132,22 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       onExpandedChange(nodeIds);
     } else {
       setInternalExpanded(nodeIds);
+    }
+  };
+
+  // Load permissions data when showPermissions is enabled
+  useEffect(() => {
+    if (showPermissions) {
+      loadPermissions();
+    }
+  }, [showPermissions]);
+
+  const loadPermissions = async () => {
+    try {
+      const data = await gitlabService.getPermissionsOverview();
+      setPermissionsData(data);
+    } catch (error) {
+      console.error('Failed to load permissions:', error);
     }
   };
 
@@ -86,6 +169,10 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
         }
       };
       reloadExpandedNodes();
+      // Also reload permissions
+      if (showPermissions) {
+        loadPermissions();
+      }
     } else {
       loadRootNodes();
     }
@@ -104,6 +191,23 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       
       groups.forEach((group: any) => {
         const nodeId = `group-${group.id}`;
+        
+        // Find permission data for this group
+        let permissionInfo = null;
+        if (permissionsData?.groups) {
+          const findGroupPermission = (groups: any[]): any => {
+            for (const g of groups) {
+              if (g.id === group.id) return g;
+              if (g.subgroups) {
+                const found = findGroupPermission(g.subgroups);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          permissionInfo = findGroupPermission(permissionsData.groups);
+        }
+        
         nodeMap[nodeId] = {
           id: nodeId,
           name: group.name,
@@ -114,6 +218,8 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           description: group.description,
           parent_id: group.parent_id,
           hasChildren: true, // Assume groups can have children
+          memberCount: permissionInfo?.member_count,
+          userAccess: permissionInfo?.user_access,
         };
         if (!group.parent_id) {
           rootIds.push(nodeId);
@@ -159,6 +265,23 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       // Process subgroups
       subgroups.forEach((group: any) => {
         const childId = `group-${group.id}`;
+        
+        // Find permission data for this subgroup
+        let permissionInfo = null;
+        if (permissionsData?.groups) {
+          const findGroupPermission = (groups: any[]): any => {
+            for (const g of groups) {
+              if (g.id === group.id) return g;
+              if (g.subgroups) {
+                const found = findGroupPermission(g.subgroups);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          permissionInfo = findGroupPermission(permissionsData.groups);
+        }
+        
         newNodes[childId] = {
           id: childId,
           name: group.name,
@@ -169,6 +292,8 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           description: group.description,
           parent_id: group.parent_id,
           hasChildren: true,
+          memberCount: permissionInfo?.member_count,
+          userAccess: permissionInfo?.user_access,
         };
         childIds.push(childId);
       });
@@ -176,6 +301,26 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       // Process projects
       projects.forEach((project: any) => {
         const childId = `project-${project.id}`;
+        
+        // Find permission data for this project
+        let permissionInfo = null;
+        if (permissionsData?.groups) {
+          const findProjectPermission = (groups: any[]): any => {
+            for (const g of groups) {
+              if (g.projects) {
+                const proj = g.projects.find((p: any) => p.id === project.id);
+                if (proj) return proj;
+              }
+              if (g.subgroups) {
+                const found = findProjectPermission(g.subgroups);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          permissionInfo = findProjectPermission(permissionsData.groups);
+        }
+        
         newNodes[childId] = {
           id: childId,
           name: project.name,
@@ -186,6 +331,8 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           description: project.description,
           namespace: project.namespace,
           hasChildren: false,
+          memberCount: permissionInfo?.member_count,
+          userAccess: permissionInfo?.user_access,
         };
         childIds.push(childId);
       });
@@ -225,22 +372,23 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
     const node = nodes[nodeId];
     if (!node) return;
 
+    // Always select the node first
+    onSelect(node);
+    
     // For groups, toggle expansion on click
     if (node.type === 'group') {
-      const newExpanded = expanded.includes(nodeId)
+      const isCurrentlyExpanded = expanded.includes(nodeId);
+      const newExpanded = isCurrentlyExpanded
         ? expanded.filter(id => id !== nodeId)
         : [...expanded, nodeId];
       
       setExpanded(newExpanded);
       
-      // Load children if expanding
-      if (!expanded.includes(nodeId)) {
+      // Load children if expanding and not already loaded
+      if (!isCurrentlyExpanded && !node.children) {
         loadChildren(nodeId);
       }
     }
-    
-    // Always select the node
-    onSelect(node);
   };
 
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>, nodeId: string) => {
@@ -256,7 +404,9 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       newCheckedNodes = checkedNodes.filter(id => id !== nodeId);
     }
 
-    onCheckedNodesChange(newCheckedNodes);
+    // Pass node information along with IDs
+    const checkedNodeObjects = newCheckedNodes.map(id => nodes[id]).filter(Boolean);
+    onCheckedNodesChange(newCheckedNodes, checkedNodeObjects);
   };
 
   const handleSelect = (event: React.SyntheticEvent | null, nodeIds: string[] | string) => {
@@ -265,7 +415,25 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
 
   const handleDragStart = (event: React.DragEvent, node: TreeNode) => {
     event.dataTransfer.effectAllowed = 'move';
-    setDraggedNode(node);
+    
+    // If we're in multi-select mode
+    if (onCheckedNodesChange) {
+      // If dragging a checked item, move all checked items
+      if (checkedNodes.includes(node.id)) {
+        event.dataTransfer.setData('text/plain', `Moving ${checkedNodes.length} items`);
+        setDraggedNode({
+          ...node,
+          name: `${checkedNodes.length} selected items`,
+        });
+      } else {
+        // If dragging an unchecked item in multi-select mode, just move that single item
+        setDraggedNode(node);
+      }
+    } else {
+      // Single item drag (no multi-select mode)
+      setDraggedNode(node);
+    }
+    
     if (onDragStart) {
       onDragStart(node);
     }
@@ -289,10 +457,18 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       // Validate drop
       if (targetNode.type === 'project') {
         showError('Cannot drop items into projects');
+        setDraggedNode(null);
         return;
       }
       
-      onDrop(targetNode, draggedNode);
+      // Check if we're dropping multiple selected items
+      if (onCheckedNodesChange && checkedNodes.length > 0 && checkedNodes.some(id => id === draggedNode.id || draggedNode.name.includes('selected items'))) {
+        // This will trigger bulk transfer in the parent component
+        onDrop(targetNode, draggedNode);
+      } else {
+        // Single item drop
+        onDrop(targetNode, draggedNode);
+      }
     }
     setDraggedNode(null);
   };
@@ -301,10 +477,15 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
     const node = nodes[nodeId];
     if (!node) return <></>;
 
+    // Filter based on access level if showOnlyDeveloperPlus is enabled
+    if (showOnlyDeveloperPlus && node.userAccess && !isHighLevelAccess(node.userAccess.access_level_name)) {
+      return <></>;
+    }
+
     const isExpanded = expanded.includes(nodeId);
     const isDragOver = dragOverNodeId === nodeId;
     const isDropTarget = draggedNode && node.type === 'group' && draggedNode.id !== nodeId;
-    const hasChildren = node.hasChildren || (node.children && node.children.length > 0);
+    const hasChildren = node.type === 'group' && (node.hasChildren || (node.children && node.children.length > 0));
 
     return (
       <TreeItem
@@ -390,15 +571,74 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
               />
             )}
             
-            {/* Visibility Badge */}
-            {node.visibility && node.visibility !== 'private' && (
-              <Chip 
-                label={node.visibility} 
-                size="small" 
-                variant="outlined"
-                sx={{ ml: 1, height: 20 }} 
-              />
-            )}
+            {/* Tags Container */}
+            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'wrap', ml: 1 }}>
+              {/* Member Count */}
+              {showPermissions && node.memberCount !== undefined && (
+                <Chip 
+                  icon={<GroupIcon />}
+                  label={`${node.memberCount} ${node.memberCount === 1 ? 'member' : 'members'}`}
+                  size="small"
+                  sx={{ 
+                    height: 24,
+                    bgcolor: '#e3f2fd',
+                    color: '#1565c0',
+                    '& .MuiChip-icon': {
+                      fontSize: 16,
+                      color: '#1565c0',
+                    },
+                    '&:hover': {
+                      bgcolor: '#bbdefb',
+                      boxShadow: 1,
+                    },
+                  }} 
+                />
+              )}
+              
+              {/* Access Level */}
+              {showPermissions && node.userAccess && (
+                <Chip 
+                  icon={<ShieldIcon />}
+                  label={node.userAccess.access_level_name}
+                  size="small"
+                  sx={{ 
+                    height: 24,
+                    bgcolor: getAccessLevelColor(node.userAccess.access_level_name),
+                    color: 'white',
+                    fontWeight: 500,
+                    '& .MuiChip-icon': {
+                      fontSize: 16,
+                      color: 'white',
+                    },
+                    '&:hover': {
+                      filter: 'brightness(0.9)',
+                      boxShadow: 1,
+                    },
+                  }} 
+                />
+              )}
+              
+              {/* Visibility Badge */}
+              {node.visibility && (
+                <Chip 
+                  icon={getVisibilityIcon(node.visibility)}
+                  label={node.visibility} 
+                  size="small" 
+                  sx={{ 
+                    height: 24,
+                    ...getVisibilityColor(node.visibility),
+                    fontWeight: 500,
+                    '& .MuiChip-icon': {
+                      fontSize: 16,
+                    },
+                    '&:hover': {
+                      filter: 'brightness(0.95)',
+                      boxShadow: 1,
+                    },
+                  }} 
+                />
+              )}
+            </Box>
             
             {/* Loading Indicator */}
             {node.isLoading && (

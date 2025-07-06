@@ -10,6 +10,12 @@ const getGitLabClient = () => {
 };
 
 export const gitlabService = {
+  // Permissions
+  async getPermissionsOverview() {
+    const response = await axios.get('/api/permissions/overview', { withCredentials: true });
+    return response.data;
+  },
+
   // Groups
   async getGroups(params?: { 
     page?: number; 
@@ -109,6 +115,55 @@ export const gitlabService = {
   async addGroupMember(groupId: number, data: { user_id: number; access_level: number; expires_at?: string }) {
     const client = getGitLabClient();
     const response = await client.post(`/groups/${groupId}/members`, data);
+    return response.data;
+  },
+
+  // Bulk Operations
+  async bulkSetPushRules(projectIds: number[], rules: any) {
+    const client = getGitLabClient();
+    const response = await client.post('/bulk/settings/push-rules', { projectIds, rules });
+    return response.data;
+  },
+
+  async bulkSetProtectedBranches(projectIds: number[], branches: any) {
+    const client = getGitLabClient();
+    const response = await client.post('/bulk/settings/protected-branches', { projectIds, branches });
+    return response.data;
+  },
+
+  async bulkSetVisibility(items: Array<{ id: number; name: string; type: 'group' | 'project' }>, visibility: string) {
+    const client = getGitLabClient();
+    const response = await client.post('/bulk/settings/visibility', { items, visibility });
+    return response.data;
+  },
+
+  async bulkSetAccessLevels(items: Array<{ id: number; name: string; type: 'group' | 'project' }>, settings: any) {
+    const client = getGitLabClient();
+    const response = await client.post('/bulk/settings/access-levels', { items, settings });
+    return response.data;
+  },
+
+  async bulkDelete(items: Array<{ id: number; name: string; type: 'group' | 'project' }>) {
+    const client = getGitLabClient();
+    const response = await client.post('/bulk/delete', { items });
+    return response.data;
+  },
+
+  async bulkCreateSubgroups(parentId: number, subgroups: any[], defaults?: any, options?: any) {
+    const client = getGitLabClient();
+    const response = await client.post('/bulk/subgroups', { parentId, subgroups, defaults, options });
+    return response.data;
+  },
+
+  async bulkCreateProjects(projects: any[], defaults?: any, branchProtection?: any, ciVariables?: any) {
+    const client = getGitLabClient();
+    const response = await client.post('/bulk/projects', { projects, defaults, branchProtection, ciVariables });
+    return response.data;
+  },
+
+  async parseYaml(content: string) {
+    const client = getGitLabClient();
+    const response = await client.post('/bulk/parse-yaml', { content });
     return response.data;
   },
 };

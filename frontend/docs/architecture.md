@@ -59,7 +59,8 @@ Located in `/src/pages/`, these are top-level route components:
 
 #### Shared Components
 Located in `/src/components/`:
-- **GitLabTree**: Reusable tree view for groups/projects
+- **GitLabTree**: Reusable tree view for groups/projects with drag-and-drop
+- **PermissionTree**: Hierarchical permission visualization
 - **Layout**: App shell with navigation
 - **ErrorBoundary**: Global error handling
 - **PrivateRoute**: Authentication guard
@@ -78,8 +79,10 @@ Organized by feature in subdirectories:
   auth: {
     isAuthenticated: boolean;
     user: User | null;
-    gitlabUrl: string;
-    token: string;
+    gitlabUrl: string | null;
+    token: string | null;
+    loading: boolean;
+    error: string | null;
   },
   ui: {
     loading: boolean;

@@ -75,7 +75,9 @@
       "Bash(export TERM=xterm-256color)",
       "Bash(claude doctor)",
       "Bash(./stop.sh)",
-      "WebFetch(domain:docs.gitlab.com)"
+      "WebFetch(domain:docs.gitlab.com)",
+      "Bash(cat:*)",
+      "Bash(./manage.sh:*)"
     ],
     "deny": []
   }

@@ -95,3 +95,50 @@ frontend/
 │   └── utils/         # Utility functions
 ├── public/            # Static assets
 └── docs/             # Documentation
+```
+
+## GitLab Personal Access Token
+
+To use this application, you need a GitLab Personal Access Token with the following scopes:
+
+- `api` - Full API access
+- `read_user` - Read user information
+- `read_api` - Read access to the API (if using read-only features)
+
+### Creating a Personal Access Token
+
+1. Log in to your GitLab instance
+2. Go to User Settings → Access Tokens
+3. Create a new token with the required scopes
+4. Copy the token immediately (it won't be shown again)
+
+## Common Issues
+
+### Authentication Failed
+- Verify your GitLab URL is correct (include `https://`)
+- Check that your token hasn't expired
+- Ensure the token has the required scopes
+
+### Cannot Connect to Backend
+- Ensure the backend server is running on port 5000
+- Check that VITE_API_URL in `.env` is correct
+- Look for CORS errors in the browser console
+
+### Missing Dependencies
+```bash
+# Clear node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+## Next Steps
+
+1. **Explore the Dashboard**: Get an overview of your GitLab instance
+2. **Try Group Management**: Create and organize groups
+3. **Import Data**: Use bulk operations to import from CSV
+4. **Check Permissions**: View your access levels with Permission Tree
+
+For more detailed information, see:
+- [Architecture Overview](./architecture.md)
+- [Development Guide](./development.md)
+- [Features Documentation](./features.md)

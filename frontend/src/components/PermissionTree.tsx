@@ -13,7 +13,9 @@ import {
   Stack,
   Paper,
   TextField,
-  InputAdornment
+  InputAdornment,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import {
   ExpandMore,
@@ -98,10 +100,25 @@ const getVisibilityIcon = (visibility: string) => {
   }
 };
 
-const GroupNode: React.FC<{ group: Group; searchTerm: string }> = ({ group, searchTerm }) => {
+const isHighLevelAccess = (level: string): boolean => {
+  return ['owner', 'maintainer', 'developer'].includes(level.toLowerCase());
+};
+
+const GroupNode: React.FC<{ group: Group; searchTerm: string; showAllLevels: boolean }> = ({ group, searchTerm, showAllLevels }) => {
   const [expanded, setExpanded] = useState(false);
   
-  const hasChildren = group.subgroups.length > 0 || group.projects.length > 0;
+  // Filter based on access level
+  const shouldShowGroup = showAllLevels || isHighLevelAccess(group.user_access.access_level_name);
+  
+  // Filter projects and subgroups based on access level
+  const filteredProjects = group.projects.filter(p => 
+    showAllLevels || isHighLevelAccess(p.user_access.access_level_name)
+  );
+  const filteredSubgroups = group.subgroups.filter(sg => 
+    showAllLevels || isHighLevelAccess(sg.user_access.access_level_name)
+  );
+  
+  const hasChildren = filteredSubgroups.length > 0 || filteredProjects.length > 0;
   
   // Filter based on search
   const matchesSearch = (text: string) => 
@@ -109,8 +126,8 @@ const GroupNode: React.FC<{ group: Group; searchTerm: string }> = ({ group, sear
   
   const groupMatches = matchesSearch(group.name) || matchesSearch(group.full_path);
   const hasMatchingChildren = 
-    group.subgroups.some(sg => matchesSearch(sg.name) || matchesSearch(sg.full_path)) ||
-    group.projects.some(p => matchesSearch(p.name) || matchesSearch(p.path));
+    filteredSubgroups.some(sg => matchesSearch(sg.name) || matchesSearch(sg.full_path)) ||
+    filteredProjects.some(p => matchesSearch(p.name) || matchesSearch(p.path));
   
   // Auto-expand if search matches children
   React.useEffect(() => {
@@ -119,7 +136,8 @@ const GroupNode: React.FC<{ group: Group; searchTerm: string }> = ({ group, sear
     }
   }, [searchTerm, hasMatchingChildren, groupMatches]);
   
-  if (searchTerm && !groupMatches && !hasMatchingChildren) {
+  // Don't show if doesn't match search or access level filter
+  if (!shouldShowGroup || (searchTerm && !groupMatches && !hasMatchingChildren)) {
     return null;
   }
 
@@ -197,7 +215,7 @@ const GroupNode: React.FC<{ group: Group; searchTerm: string }> = ({ group, sear
       <Collapse in={expanded}>
         <Box sx={{ ml: 3, mt: 1 }}>
           {/* Projects */}
-          {group.projects
+          {filteredProjects
             .filter(p => !searchTerm || matchesSearch(p.name) || matchesSearch(p.path))
             .map(project => (
             <Paper
@@ -255,8 +273,8 @@ const GroupNode: React.FC<{ group: Group; searchTerm: string }> = ({ group, sear
           ))}
           
           {/* Subgroups */}
-          {group.subgroups.map(subgroup => (
-            <GroupNode key={subgroup.id} group={subgroup} searchTerm={searchTerm} />
+          {filteredSubgroups.map(subgroup => (
+            <GroupNode key={subgroup.id} group={subgroup} searchTerm={searchTerm} showAllLevels={showAllLevels} />
           ))}
         </Box>
       </Collapse>
@@ -269,6 +287,7 @@ export const PermissionTree: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAllLevels, setShowAllLevels] = useState(false);
 
   useEffect(() => {
     loadPermissionData();
@@ -315,9 +334,22 @@ export const PermissionTree: React.FC = () => {
     <Card>
       <CardContent>
         <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Your GitLab Permissions
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Your GitLab Permissions
+            </Typography>
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showAllLevels}
+                  onChange={(e) => setShowAllLevels(e.target.checked)}
+                />
+              }
+              label={showAllLevels ? "Show all access levels" : "Show Developer+ only"}
+              labelPlacement="start"
+            />
+          </Box>
           
           <TextField
             fullWidth
@@ -362,7 +394,7 @@ export const PermissionTree: React.FC = () => {
             </Typography>
           ) : (
             data.groups.map(group => (
-              <GroupNode key={group.id} group={group} searchTerm={searchTerm} />
+              <GroupNode key={group.id} group={group} searchTerm={searchTerm} showAllLevels={showAllLevels} />
             ))
           )}
         </Box>
