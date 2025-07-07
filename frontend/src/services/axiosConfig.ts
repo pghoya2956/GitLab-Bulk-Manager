@@ -17,12 +17,11 @@ axios.interceptors.request.use(
 // Response interceptor
 axios.interceptors.response.use(
   (response) => {
-    // Log response time
-    const endTime = new Date();
+    // Calculate response time (could be used for monitoring)
     const startTime = response.config.metadata?.startTime;
-    if (startTime) {
-      const duration = endTime.getTime() - startTime.getTime();
-      console.debug(`${response.config.method?.toUpperCase()} ${response.config.url} - ${duration}ms`);
+    if (startTime && process.env.NODE_ENV === 'development') {
+      // Duration: new Date().getTime() - startTime.getTime()
+      // Could log to a monitoring service in production
     }
     return response;
   },
@@ -34,15 +33,8 @@ axios.interceptors.response.use(
       window.location.href = '/login';
     }
     
-    // Log error details in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('API Error:', {
-        url: error.config?.url,
-        method: error.config?.method,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-    }
+    // In development, errors will be shown in DevTools network tab
+    // In production, could send to error monitoring service
     
     return Promise.reject(error);
   }

@@ -79,7 +79,7 @@ export const ImportGroups: React.FC<ImportGroupsProps> = ({ selectedGroup }) => 
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file) {return;}
 
     setParsing(true);
     setError(null);

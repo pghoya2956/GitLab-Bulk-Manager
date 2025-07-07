@@ -13,37 +13,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ⚠️ Do not manually run `npm run dev` in separate terminals - the scripts handle process management properly.
 
-## 📍 Current Project State (as of 2025-07-06)
-
-### Recent Major Changes
-1. **Consolidated Dashboard into Groups & Projects** - Removed separate Dashboard page:
-   - All functionality now in Groups & Projects tab
-   - Toggle between Tree View and Permissions View
-   - Bulk operations toolbar for selected items
-   - Integrated bulk import as a dialog
-
-2. **Enhanced Bulk Operations** - Added comprehensive bulk management:
-   - Bulk Settings: visibility, protected branches, push rules, access levels
-   - Bulk Import: YAML editor and visual builder in dialog
-   - Bulk Transfer: drag-and-drop multiple items
-   - Bulk Delete: delete multiple items at once
-
-3. **Member Count Fix** - Added error handling for `/members/all` endpoint with fallback to `/members` when 404 errors occur
-
-4. **Documentation System** - Added in-app documentation viewer:
-   - New Documentation page with sidebar navigation at `/docs`
-   - Markdown rendering with syntax highlighting
-   - Backend endpoint `/api/docs/*` serves documentation files
-   - Documentation button added to main navigation
-
-5. **Project Structure** - Moved from `gitlab-bulk-manager/` subdirectory to root directory
-
-6. **Latest UX Improvements** (2025-07-06):
-   - **Fixed bulk drag-and-drop**: Multiple selected items can now be dragged together
-   - **Integrated Permissions into Tree View**: Removed separate view, now shows permissions directly in tree
-   - **Added Developer+ filter**: Toggle to show only Developer access level and above
-   - **Improved script management**: Consolidated start.sh and stop.sh into single manage.sh script
-
 ## 🏗️ Architecture Overview
 
 ### Three-Tier Architecture
@@ -72,42 +41,30 @@ Frontend (React SPA :3000) ← → Backend (Express :4000) ← → GitLab API
 - `/api/stats/*` - Resource statistics
 - `/api/docs/*` - Documentation endpoints (no auth required)
 
-## 🛠️ Common Development Tasks
+## 🛠️ Common Development Commands
 
-### Quick Start
+### Development
 ```bash
 # Start everything
 ./manage.sh start
 
-# Stop everything
-./manage.sh stop
+# Run tests
+npm test              # All tests
+npm run test:e2e      # E2E tests with Playwright
 
-# Restart everything
-./manage.sh restart
+# Linting
+npm run lint          # Check all
+npm run lint:fix      # Auto-fix issues
 
-# Check service status
-./manage.sh status
-
-# View logs
-./manage.sh logs
+# Build for production
+npm run build         # Build both frontend and backend
 ```
 
-### Backend Development
+### Docker Operations
 ```bash
-cd backend
-npm run dev       # Development with auto-reload
-npm start        # Production mode
-npm test         # Run tests
-```
-
-### Frontend Development
-```bash
-cd frontend
-npm run dev      # Start Vite dev server
-npm run build    # Production build
-npm test         # Run tests
-npm run lint     # ESLint check
-npm run lint:fix # Auto-fix linting issues
+npm run docker:build  # Build containers
+npm run docker:up     # Start containers
+npm run docker:down   # Stop containers
 ```
 
 ## 🔧 Technical Implementation Details
@@ -152,8 +109,8 @@ backend/src/
 │   ├── gitlab.js        # GitLab API proxy
 │   ├── bulk.js          # Bulk operations
 │   ├── stats.js         # Statistics endpoints
-│   ├── permissions.js   # Permission overview (NEW)
-│   └── docs.js          # Documentation serving (NEW)
+│   ├── permissions.js   # Permission overview
+│   └── docs.js          # Documentation serving
 ├── middleware/
 │   └── auth.js          # Session authentication
 └── services/
@@ -164,23 +121,15 @@ backend/src/
 ```
 frontend/src/
 ├── pages/
-│   ├── GroupsProjects.tsx  # Main page with tree/permissions views
-│   ├── SystemHealth.tsx
-│   └── Documentation.tsx   # Documentation viewer
+│   ├── GroupsProjects.tsx  # Main page with tree view
+│   ├── SystemHealth.tsx    # System monitoring
+│   └── Documentation.tsx   # Documentation viewer (Korean only)
 ├── components/
-│   ├── DocumentationViewer.tsx # Markdown renderer
-│   ├── GitLabTree.tsx      # Group/project tree navigation with permissions integration
-│   └── bulk/
-│       ├── BulkImportDialog.tsx    # Bulk import dialog (NEW)
-│       ├── BulkSettingsDialog.tsx  # Bulk settings dialog (NEW)
-│       ├── BulkVisibilityForm.tsx  # Visibility settings
-│       ├── BulkProtectedBranchesForm.tsx # Protected branches
-│       ├── BulkPushRulesForm.tsx   # Push rules (Premium)
-│       ├── BulkAccessLevelsForm.tsx # Access levels
-│       ├── YamlEditor.tsx
-│       └── HierarchyBuilder.tsx
+│   ├── DocumentationViewer.tsx # Markdown renderer (no rehype-raw for security)
+│   ├── GitLabTree.tsx      # Group/project tree with permissions
+│   └── bulk/               # Bulk operation dialogs and forms
 └── services/
-    └── gitlab.ts        # API client with bulk operations
+    └── gitlab.ts           # API client with bulk operations
 ```
 
 ## 🔍 Debugging Tips
@@ -195,10 +144,7 @@ frontend/src/
    - Check `frontend/src/services/axiosConfig.ts`
 
 3. **Empty Member Counts**
-   - Verify using `/members/all` endpoint (fixed in permissions.js)
-
-4. **React Hooks Error in PermissionTree**
-   - Fixed: useEffect now called before conditional returns
+   - Verify using `/members/all` endpoint (handled in permissions.js with fallback)
 
 ### Process Management
 ```bash
@@ -215,7 +161,6 @@ cat .frontend.pid
 ```
 
 ## 🚀 Performance Considerations
-
 - Bulk operations use batching with configurable delays
 - GitLabTree uses virtual scrolling for large datasets
 - API responses cached with React Query (5 min default)
@@ -225,7 +170,7 @@ cat .frontend.pid
 
 ### Important API Differences
 - `/members` - Direct members only
-- `/members/all` - Includes inherited members (what we use)
+- `/members/all` - Includes inherited members (what we use with fallback)
 - Group visibility affects API access
 - Rate limits: ~600 req/min for authenticated users
 
@@ -248,13 +193,11 @@ const totalCount = parseInt(response.headers['x-total'] || '0');
 - Multi-select and bulk drag-and-drop support
 ```
 
-### Statistics API Enhancement
-```javascript
-// backend/src/routes/stats.js
-- Parallel requests for groups/projects/users
-- 5-second timeout with fallback
-- Uses pagination headers for accurate counts
-```
+### Documentation System
+- Korean-only documentation at `/docs`
+- Markdown rendering with Mermaid diagram support
+- Pure markdown approach (no HTML for security)
+- Full-width layout for better readability
 
 ### Environment Variables
 
@@ -267,3 +210,8 @@ GITLAB_TOKEN=glpat-xxxxx  # Optional default token
 ```
 
 **Frontend** - No env vars needed (uses backend proxy)
+
+## 📦 Dependencies
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+- Workspaces setup for monorepo management

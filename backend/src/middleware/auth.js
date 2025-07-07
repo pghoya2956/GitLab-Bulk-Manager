@@ -4,9 +4,9 @@ export const authenticateToken = (req, res, next) => {
   // Check if user has a valid session
   if (!req.session || !req.session.gitlabToken || !req.session.gitlabUrl) {
     logger.warn('Unauthorized request - no valid session');
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      message: 'Please login first' 
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Please login first',
     });
   }
 

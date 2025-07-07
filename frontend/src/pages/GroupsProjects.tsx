@@ -8,15 +8,12 @@ import {
   Menu,
   MenuItem,
   Divider,
-  Toolbar,
-  Alert,
   Fade,
   ToggleButton,
-  ToggleButtonGroup,
   FormControlLabel,
   Switch,
 } from '@mui/material';
-import { useTranslation } from 'react-i18next';
+// import { useTranslation } from 'react-i18next';
 import { gitlabService } from '../services/gitlab';
 import { GitLabTree } from '../components/GitLabTree';
 import { CreateProjectDialog } from '../components/CreateProjectDialog';
@@ -35,11 +32,9 @@ import FolderIcon from '@mui/icons-material/Folder';
 import CodeIcon from '@mui/icons-material/Code';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import UploadIcon from '@mui/icons-material/Upload';
-import SecurityIcon from '@mui/icons-material/Security';
 
 interface TreeNode {
   id: string;
@@ -54,7 +49,7 @@ interface TreeNode {
 }
 
 export const GroupsProjects: React.FC = () => {
-  const { t } = useTranslation();
+  // const { t } = useTranslation();
   const { showSuccess, showError } = useNotification();
   
   // State
@@ -120,7 +115,7 @@ export const GroupsProjects: React.FC = () => {
   }, [multiSelectMode, checkedNodes, nodeMap]);
 
   const handleConfirmTransfer = async () => {
-    if (!pendingTransfer) return;
+    if (!pendingTransfer) {return;}
     
     const { source, target } = pendingTransfer;
     setTransferLoading(true);
@@ -141,22 +136,22 @@ export const GroupsProjects: React.FC = () => {
       // Refresh tree
       setRefreshTrigger(prev => prev + 1);
       setPendingTransfer(null);
-    } catch (error: any) {
-      showError(error.response?.data?.message || `Failed to move ${source.name}`);
+    } catch (error) {
+      showError((error as any).response?.data?.message || `Failed to move ${source.name}`);
     } finally {
       setTransferLoading(false);
     }
   };
 
   const handleConfirmBulkTransfer = async () => {
-    if (!pendingBulkTransfer) return;
+    if (!pendingBulkTransfer) {return;}
     
     const { sources, target } = pendingBulkTransfer;
     setTransferLoading(true);
     
     const targetGroupId = parseInt(target.id.replace('group-', ''));
     let successCount = 0;
-    let failedItems: string[] = [];
+    const failedItems: string[] = [];
     
     for (const source of sources) {
       try {
@@ -168,7 +163,7 @@ export const GroupsProjects: React.FC = () => {
           await gitlabService.transferProject(projectId, targetGroupId);
         }
         successCount++;
-      } catch (error: any) {
+      } catch (error) {
         failedItems.push(source.name);
       }
     }
@@ -220,7 +215,7 @@ export const GroupsProjects: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!selectedNode) return;
+    if (!selectedNode) {return;}
     
     const confirmMessage = selectedNode.type === 'group' 
       ? `Are you sure you want to delete the group "${selectedNode.name}"? This will also delete all subgroups and projects.`
@@ -243,8 +238,8 @@ export const GroupsProjects: React.FC = () => {
       
       setSelectedNode(null);
       setRefreshTrigger(prev => prev + 1);
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Failed to delete');
+    } catch (error) {
+      showError((error as any).response?.data?.message || 'Failed to delete');
     }
     
     handleMenuClose();
@@ -255,7 +250,7 @@ export const GroupsProjects: React.FC = () => {
       .map(id => nodeMap[id])
       .filter(Boolean);
 
-    if (selectedItems.length === 0) return;
+    if (selectedItems.length === 0) {return;}
 
     const confirmMessage = `Are you sure you want to delete ${selectedItems.length} items? This action cannot be undone.`;
     
@@ -272,17 +267,17 @@ export const GroupsProjects: React.FC = () => {
 
       const response = await gitlabService.bulkDelete(items);
       
-      if (response.results.success.length > 0) {
-        showSuccess(`Successfully deleted ${response.results.success.length} items`);
+      if (response.results?.successful && response.results.successful.length > 0) {
+        showSuccess(`Successfully deleted ${response.results.successful.length} items`);
       }
-      if (response.results.failed.length > 0) {
+      if (response.results?.failed && response.results.failed.length > 0) {
         showError(`Failed to delete ${response.results.failed.length} items`);
       }
       
       setCheckedNodes([]);
       setRefreshTrigger(prev => prev + 1);
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Failed to delete items');
+    } catch (error) {
+      showError((error as any).response?.data?.message || 'Failed to delete items');
     }
     
     setBulkMenuAnchor(null);
@@ -297,7 +292,7 @@ export const GroupsProjects: React.FC = () => {
   };
 
   const getSelectedGroup = () => {
-    if (!selectedNode) return undefined;
+    if (!selectedNode) {return undefined;}
     
     if (selectedNode.type === 'group') {
       return {

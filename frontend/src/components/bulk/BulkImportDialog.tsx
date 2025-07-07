@@ -24,6 +24,7 @@ import { HierarchyBuilder } from './HierarchyBuilder';
 import { ImportGroups } from './ImportGroups';
 import { gitlabService } from '../../services/gitlab';
 import { useNotification } from '../../hooks/useNotification';
+import type { GitLabProtectedBranch } from '../../types/gitlab';
 
 interface BulkImportDialogProps {
   open: boolean;
@@ -34,6 +35,15 @@ interface BulkImportDialogProps {
     full_path: string;
   };
   onSuccess?: () => void;
+}
+
+interface YamlData {
+  subgroups?: Array<{ name: string; path?: string; description?: string }>;
+  projects?: Array<{ name: string; path?: string; description?: string }>;
+  defaults?: Record<string, any>;
+  options?: Record<string, any>;
+  branchProtection?: Record<string, any>;
+  ciVariables?: Array<{ key: string; value: string }>;
 }
 
 interface TabPanelProps {
@@ -63,11 +73,11 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
 }) => {
   const [tab, setTab] = useState(0);
   const [subTab, setSubTab] = useState(0);
-  const [generatedYaml, setGeneratedYaml] = useState<any>(null);
+  const [generatedYaml, setGeneratedYaml] = useState<YamlData | null>(null);
   const { showSuccess, showError } = useNotification();
 
   const getSelectedGroupData = () => {
-    if (!selectedGroup) return undefined;
+    if (!selectedGroup) {return undefined;}
     
     return {
       id: parseInt(selectedGroup.id.replace('group-', '')),
@@ -76,7 +86,7 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
     };
   };
 
-  const handleYamlExecute = async (type: 'subgroups' | 'projects', data: any) => {
+  const handleYamlExecute = async (type: 'subgroups' | 'projects', data: YamlData) => {
     try {
       if (!selectedGroup) {
         showError('Please select a target group first');
@@ -88,32 +98,32 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
       if (type === 'subgroups') {
         const response = await gitlabService.bulkCreateSubgroups(
           groupId,
-          data.subgroups,
+          data.subgroups || [],
           data.defaults,
           data.options
         );
         
-        if (response.results.created.length > 0) {
+        if (response.results.created && response.results.created.length > 0) {
           showSuccess(`Successfully created ${response.results.created.length} subgroups`);
         }
-        if (response.results.failed.length > 0) {
+        if (response.results.failed && response.results.failed.length > 0) {
           showError(`Failed to create ${response.results.failed.length} subgroups`);
         }
       } else {
         const response = await gitlabService.bulkCreateProjects(
           [{
             group_id: groupId,
-            projects: data.projects,
+            projects: data.projects || [],
           }],
           data.defaults,
-          data.branchProtection,
+          data.branchProtection as GitLabProtectedBranch[] | undefined,
           data.ciVariables
         );
         
-        if (response.results.created.length > 0) {
+        if (response.results.created && response.results.created.length > 0) {
           showSuccess(`Successfully created ${response.results.created.length} projects`);
         }
-        if (response.results.failed.length > 0) {
+        if (response.results.failed && response.results.failed.length > 0) {
           showError(`Failed to create ${response.results.failed.length} projects`);
         }
       }
@@ -121,16 +131,15 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error: any) {
-      showError(error.message || 'Failed to execute bulk import');
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Failed to execute bulk import');
     }
   };
 
-  const handleHierarchyGenerate = (data: any) => {
+  const handleHierarchyGenerate = (data: YamlData) => {
     setGeneratedYaml(data);
     setTab(0); // Switch to YAML editor
     setSubTab(0); // Subgroups tab
-    // TODO: Pass the generated YAML to the editor
   };
 
   return (
@@ -176,7 +185,7 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
         )}
 
         {/* Import Method Tabs */}
-        <Tabs value={tab} onChange={(e, v) => setTab(v)}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
           <Tab 
             label="YAML Editor" 
             icon={<Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -208,7 +217,7 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
             </Typography>
           </Alert>
           
-          <Tabs value={subTab} onChange={(e, v) => setSubTab(v)}>
+          <Tabs value={subTab} onChange={(_, v) => setSubTab(v)}>
             <Tab label="Create Subgroups" />
             <Tab label="Create Projects" />
           </Tabs>
@@ -218,7 +227,7 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
               <YamlEditor 
                 type="subgroups" 
                 onExecute={(data) => handleYamlExecute('subgroups', data)}
-                initialYaml={generatedYaml}
+                initialYaml={generatedYaml ? JSON.stringify(generatedYaml, null, 2) : undefined}
                 disabled={!selectedGroup}
               />
             )}

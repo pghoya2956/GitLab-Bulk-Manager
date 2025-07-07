@@ -12,7 +12,6 @@ import {
   IconButton,
   List,
   ListItem,
-  ListItemText,
   ListItemSecondaryAction,
   Switch,
   FormControlLabel,
@@ -22,7 +21,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 interface BulkProtectedBranchesFormProps {
-  onSubmit: (branches: any) => void;
+  onSubmit: (data: { deleteExisting: boolean; rules: BranchRule[] }) => void;
   disabled?: boolean;
   projectCount: number;
 }
@@ -78,7 +77,7 @@ export const BulkProtectedBranchesForm: React.FC<BulkProtectedBranchesFormProps>
     setRules(rules.filter((_, i) => i !== index));
   };
 
-  const handleRuleChange = (index: number, field: keyof BranchRule, value: any) => {
+  const handleRuleChange = (index: number, field: keyof BranchRule, value: string | number | boolean) => {
     const newRules = [...rules];
     newRules[index] = { ...newRules[index], [field]: value };
     setRules(newRules);

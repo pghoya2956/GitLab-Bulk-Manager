@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Box, Typography, Button, Paper } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
               Oops! Something went wrong
             </Typography>
             <Typography variant="body1" color="text.secondary" paragraph>
-              We're sorry, but something unexpected happened. Please try refreshing the page.
+              We&apos;re sorry, but something unexpected happened. Please try refreshing the page.
             </Typography>
             
             {process.env.NODE_ENV === 'development' && this.state.error && (

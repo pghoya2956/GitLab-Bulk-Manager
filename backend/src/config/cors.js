@@ -3,5 +3,5 @@ export const corsConfig = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Per-Page']
+  exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Per-Page'],
 };

@@ -14,7 +14,6 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Button,
   IconButton
 } from '@mui/material';
 import axios from 'axios';
@@ -71,8 +70,8 @@ export const SystemHealth: React.FC = () => {
       const response = await axios.get<HealthData>('/api/gitlab/bulk/health-check');
       setHealthData(response.data);
       setLastCheck(new Date());
-    } catch (err: any) {
-      setError(err.response?.data?.message || '상태 확인 실패');
+    } catch (err) {
+      setError((err as any).response?.data?.message || '상태 확인 실패');
     } finally {
       setLoading(false);
     }
@@ -113,9 +112,9 @@ export const SystemHealth: React.FC = () => {
   };
 
   const getRateLimitPercentage = () => {
-    if (!healthData?.components.rateLimit) return 0;
+    if (!healthData?.components.rateLimit) {return 0;}
     const { limit, remaining } = healthData.components.rateLimit;
-    if (!limit || !remaining) return 0;
+    if (!limit || !remaining) {return 0;}
     return (parseInt(remaining) / parseInt(limit)) * 100;
   };
 
@@ -299,7 +298,7 @@ export const SystemHealth: React.FC = () => {
                             </Typography>
                             {getStatusIcon(component.status)}
                           </Box>
-                          {component.error && (
+                          {'error' in component && component.error && (
                             <Typography variant="caption" color="error" sx={{ mt: 1 }}>
                               {component.error}
                             </Typography>

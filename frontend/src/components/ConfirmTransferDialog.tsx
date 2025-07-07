@@ -41,7 +41,7 @@ export const ConfirmTransferDialog: React.FC<ConfirmTransferDialogProps> = ({
   targetNode,
   loading = false,
 }) => {
-  if (!sourceNode || !targetNode) return null;
+  if (!sourceNode || !targetNode) {return null;}
 
   const isGroupTransfer = sourceNode.type === 'group';
   const title = isGroupTransfer ? 'Move Group' : 'Move Project';

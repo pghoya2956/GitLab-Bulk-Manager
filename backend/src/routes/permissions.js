@@ -10,7 +10,7 @@ const ACCESS_LEVELS = {
   20: 'reporter',
   30: 'developer',
   40: 'maintainer',
-  50: 'owner'
+  50: 'owner',
 };
 
 // Get user's permissions across all groups and projects
@@ -18,10 +18,10 @@ router.get('/overview', async (req, res) => {
   try {
     const token = req.session.gitlabToken;
     const baseURL = req.session.gitlabUrl || process.env.GITLAB_API_URL || 'https://gitlab.com';
-    
+
     // First, get current user info
     const userResponse = await axios.get(`${baseURL}/api/v4/user`, {
-      headers: { 'PRIVATE-TOKEN': token }
+      headers: { 'PRIVATE-TOKEN': token },
     });
     const currentUser = userResponse.data;
 
@@ -32,12 +32,12 @@ router.get('/overview', async (req, res) => {
         per_page: 100,
         min_access_level: 10, // Guest or higher
         order_by: 'name',
-        sort: 'asc'
-      }
+        sort: 'asc',
+      },
     });
 
     const groups = groupsResponse.data;
-    
+
     // Process each group to get member info and projects
     const groupsWithDetails = await Promise.all(
       groups.map(async (group) => {
@@ -47,7 +47,7 @@ router.get('/overview', async (req, res) => {
           try {
             const membersResponse = await axios.get(`${baseURL}/api/v4/groups/${group.id}/members/all`, {
               headers: { 'PRIVATE-TOKEN': token },
-              params: { per_page: 1 }
+              params: { per_page: 1 },
             });
             memberCount = parseInt(membersResponse.headers['x-total'] || '0');
           } catch (error) {
@@ -56,7 +56,7 @@ router.get('/overview', async (req, res) => {
               try {
                 const fallbackResponse = await axios.get(`${baseURL}/api/v4/groups/${group.id}/members`, {
                   headers: { 'PRIVATE-TOKEN': token },
-                  params: { per_page: 1 }
+                  params: { per_page: 1 },
                 });
                 memberCount = parseInt(fallbackResponse.headers['x-total'] || '0');
                 logger.warn(`Group ${group.id} members/all returned 404, using direct members count: ${memberCount}`);
@@ -72,24 +72,24 @@ router.get('/overview', async (req, res) => {
           let userAccess = null;
           try {
             const userMemberResponse = await axios.get(`${baseURL}/api/v4/groups/${group.id}/members/${currentUser.id}`, {
-              headers: { 'PRIVATE-TOKEN': token }
+              headers: { 'PRIVATE-TOKEN': token },
             });
             userAccess = {
               access_level: userMemberResponse.data.access_level,
-              access_level_name: ACCESS_LEVELS[userMemberResponse.data.access_level] || 'unknown'
+              access_level_name: ACCESS_LEVELS[userMemberResponse.data.access_level] || 'unknown',
             };
           } catch (error) {
             // User might not be a direct member but have inherited access
             userAccess = {
               access_level: group.access_level || 10,
-              access_level_name: ACCESS_LEVELS[group.access_level] || 'guest'
+              access_level_name: ACCESS_LEVELS[group.access_level] || 'guest',
             };
           }
 
           // Get projects in this group
           const projectsResponse = await axios.get(`${baseURL}/api/v4/groups/${group.id}/projects`, {
             headers: { 'PRIVATE-TOKEN': token },
-            params: { per_page: 100, include_subgroups: false }
+            params: { per_page: 100, include_subgroups: false },
           });
 
           const projects = await Promise.all(
@@ -99,7 +99,7 @@ router.get('/overview', async (req, res) => {
               try {
                 const projectMembersResponse = await axios.get(`${baseURL}/api/v4/projects/${project.id}/members/all`, {
                   headers: { 'PRIVATE-TOKEN': token },
-                  params: { per_page: 1 }
+                  params: { per_page: 1 },
                 });
                 projectMemberCount = parseInt(projectMembersResponse.headers['x-total'] || '0');
               } catch (error) {
@@ -108,7 +108,7 @@ router.get('/overview', async (req, res) => {
                   try {
                     const fallbackResponse = await axios.get(`${baseURL}/api/v4/projects/${project.id}/members`, {
                       headers: { 'PRIVATE-TOKEN': token },
-                      params: { per_page: 1 }
+                      params: { per_page: 1 },
                     });
                     projectMemberCount = parseInt(fallbackResponse.headers['x-total'] || '0');
                     logger.warn(`Project ${project.id} members/all returned 404, using direct members count: ${projectMemberCount}`);
@@ -129,10 +129,10 @@ router.get('/overview', async (req, res) => {
                 visibility: project.visibility,
                 user_access: {
                   access_level: project.permissions?.project_access?.access_level || project.permissions?.group_access?.access_level || userAccess.access_level,
-                  access_level_name: ACCESS_LEVELS[project.permissions?.project_access?.access_level || project.permissions?.group_access?.access_level || userAccess.access_level] || 'unknown'
-                }
+                  access_level_name: ACCESS_LEVELS[project.permissions?.project_access?.access_level || project.permissions?.group_access?.access_level || userAccess.access_level] || 'unknown',
+                },
               };
-            })
+            }),
           );
 
           return {
@@ -144,7 +144,7 @@ router.get('/overview', async (req, res) => {
             visibility: group.visibility,
             member_count: memberCount,
             user_access: userAccess,
-            projects: projects.sort((a, b) => a.name.localeCompare(b.name))
+            projects: projects.sort((a, b) => a.name.localeCompare(b.name)),
           };
         } catch (error) {
           logger.error(`Failed to get details for group ${group.id}:`, error.message);
@@ -152,10 +152,10 @@ router.get('/overview', async (req, res) => {
             id: group.id,
             name: group.name,
             full_path: group.full_path,
-            error: 'Failed to load details'
+            error: 'Failed to load details',
           };
         }
-      })
+      }),
     );
 
     // Build hierarchy
@@ -164,12 +164,12 @@ router.get('/overview', async (req, res) => {
       const rootGroups = [];
 
       // First pass: create map
-      groups.forEach(group => {
+      groups.forEach((group) => {
         groupMap.set(group.id, { ...group, subgroups: [] });
       });
 
       // Second pass: build hierarchy
-      groups.forEach(group => {
+      groups.forEach((group) => {
         if (group.parent_id) {
           const parent = groupMap.get(group.parent_id);
           if (parent) {
@@ -191,17 +191,17 @@ router.get('/overview', async (req, res) => {
       user: {
         id: currentUser.id,
         username: currentUser.username,
-        name: currentUser.name
+        name: currentUser.name,
       },
       groups: hierarchy,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
   } catch (error) {
     logger.error('Permissions overview error:', error);
     res.status(500).json({
       error: 'Failed to get permissions overview',
-      message: error.message
+      message: error.message,
     });
   }
 });

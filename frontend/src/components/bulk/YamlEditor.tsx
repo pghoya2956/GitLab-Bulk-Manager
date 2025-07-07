@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -12,8 +12,8 @@ import {
   Snackbar
 } from '@mui/material';
 import axios from 'axios';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
+// import { useSelector } from 'react-redux';
+// import { RootState } from '../../store';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
@@ -23,7 +23,9 @@ interface YamlEditorProps {
   type: 'subgroups' | 'projects';
   onExecute?: (data: any) => void;
   initialData?: string;
+  initialYaml?: string;  // Support both prop names
   parentId?: number;
+  disabled?: boolean;
 }
 
 const YAML_TEMPLATES = {
@@ -88,9 +90,10 @@ ci_variables:
       protected: true`
 };
 
-export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initialData, parentId }) => {
+export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initialData, initialYaml, parentId, disabled }) => {
   const [yamlContent, setYamlContent] = useState(() => {
-    if (initialData) return initialData;
+    if (initialYaml) {return initialYaml;}
+    if (initialData) {return initialData;}
     const template = YAML_TEMPLATES[type];
     if (parentId && type === 'subgroups') {
       return template.replace('parent_id: 123', `parent_id: ${parentId}`);
@@ -103,7 +106,7 @@ export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initial
   const [tabValue, setTabValue] = useState(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  const token = useSelector((state: RootState) => state.auth.token);
+  // const token = useSelector((state: RootState) => state.auth.token);
 
   // YAML 파싱
   const parseYaml = async () => {
@@ -250,7 +253,7 @@ export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initial
                 variant="contained"
                 startIcon={loading ? <CircularProgress size={20} /> : <PlayArrowIcon />}
                 onClick={handleExecute}
-                disabled={loading || !parsedData}
+                disabled={loading || !parsedData || disabled}
               >
                 실행
               </Button>
@@ -270,7 +273,7 @@ export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initial
                 variant="contained"
                 startIcon={loading ? <CircularProgress size={20} /> : <PlayArrowIcon />}
                 onClick={handleExecute}
-                disabled={loading}
+                disabled={loading || disabled}
               >
                 실행
               </Button>

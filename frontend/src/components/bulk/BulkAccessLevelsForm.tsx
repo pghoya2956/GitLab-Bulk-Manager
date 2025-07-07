@@ -13,8 +13,20 @@ import {
   Divider,
 } from '@mui/material';
 
+interface AccessLevelSettings {
+  groups?: {
+    project_creation_level?: string;
+    subgroup_creation_level?: string;
+  };
+  projects?: {
+    merge_requests_access_level?: string;
+    issues_access_level?: string;
+    forking_access_level?: string;
+  };
+}
+
 interface BulkAccessLevelsFormProps {
-  onSubmit: (settings: any) => void;
+  onSubmit: (settings: AccessLevelSettings) => void;
   disabled?: boolean;
   hasGroups: boolean;
   hasProjects: boolean;
@@ -56,25 +68,25 @@ export const BulkAccessLevelsForm: React.FC<BulkAccessLevelsFormProps> = ({
     snippets_access_level: 'enabled',
   });
 
-  const handleGroupChange = (field: string, value: any) => {
+  const handleGroupChange = (field: string, value: string | boolean) => {
     setGroupSettings({ ...groupSettings, [field]: value });
   };
 
-  const handleProjectChange = (field: string, value: any) => {
+  const handleProjectChange = (field: string, value: string | boolean) => {
     setProjectSettings({ ...projectSettings, [field]: value });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const settings: any = {};
+    const settings: AccessLevelSettings = {};
     
-    if (hasGroups) {
-      Object.assign(settings, groupSettings);
+    if (hasGroups && Object.keys(groupSettings).length > 0) {
+      settings.groups = groupSettings;
     }
     
-    if (hasProjects) {
-      Object.assign(settings, projectSettings);
+    if (hasProjects && Object.keys(projectSettings).length > 0) {
+      settings.projects = projectSettings;
     }
     
     onSubmit(settings);

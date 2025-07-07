@@ -1,18 +1,15 @@
 import express from 'express';
 import axios from 'axios';
 import yaml from 'js-yaml';
+import { API_RATE_LIMIT, GITLAB_CONFIG } from '../config/constants.js';
 
 const router = express.Router();
 
-// Rate limiting 설정
-const DEFAULT_API_DELAY = 200; // milliseconds
-const MAX_RETRIES = 3;
-
 // Helper: API 호출 지연
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Helper: 재시도 로직
-async function retryRequest(fn, retries = MAX_RETRIES) {
+async function retryRequest(fn, retries = API_RATE_LIMIT.MAX_RETRIES) {
   for (let i = 0; i <= retries; i++) {
     try {
       return await fn();
@@ -20,7 +17,7 @@ async function retryRequest(fn, retries = MAX_RETRIES) {
       if (i === retries || error.response?.status < 500) {
         throw error;
       }
-      await delay(Math.pow(2, i) * 1000); // Exponential backoff
+      await delay(Math.pow(API_RATE_LIMIT.BACKOFF_MULTIPLIER, i) * 1000); // Exponential backoff
     }
   }
 }
@@ -28,34 +25,112 @@ async function retryRequest(fn, retries = MAX_RETRIES) {
 // Helper: GitLab API 호출
 async function gitlabRequest(req, method, path, data = null, includeHeaders = false) {
   const token = req.session.gitlabToken;
-  const baseURL = req.session.gitlabUrl || process.env.GITLAB_API_URL || 'https://gitlab.com';
-  
+  const baseURL = req.session.gitlabUrl || GITLAB_CONFIG.DEFAULT_URL;
+
   return retryRequest(async () => {
     const response = await axios({
       method,
-      url: `${baseURL}/api/v4${path}`,
+      url: `${baseURL}${GITLAB_CONFIG.API_VERSION}${path}`,
       headers: {
         'PRIVATE-TOKEN': token,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      data
+      data,
     });
-    
+
     if (includeHeaders) {
       return {
         data: response.data,
-        headers: response.headers
+        headers: response.headers,
       };
     }
     return response.data;
   });
 }
 
+// Helper: 재귀적으로 서브그룹 생성
+async function createSubgroupsRecursive(req, groups, parentId, parentPath, {
+  results,
+  defaultSettings,
+  apiDelay,
+  skipExisting,
+  continueOnError,
+}) {
+  for (const group of groups) {
+    results.total++;
+
+    try {
+      // 기존 그룹 확인
+      let existingGroup = null;
+      if (skipExisting) {
+        try {
+          const searchPath = parentPath ? `${parentPath}/${group.path}` : group.path;
+          existingGroup = await gitlabRequest(req, 'GET', `/groups/${encodeURIComponent(searchPath)}`);
+        } catch (error) {
+          // Group doesn't exist - proceed with creation
+          existingGroup = null;
+        }
+      }
+
+      if (existingGroup) {
+        results.skipped.push({
+          name: group.name,
+          path: group.path,
+          reason: 'Already exists',
+        });
+      } else {
+        // 그룹 생성
+        const groupData = {
+          name: group.name,
+          path: group.path,
+          parent_id: parentId,
+          ...defaultSettings,
+          ...group.settings,
+          description: group.description,
+        };
+
+        const createdGroup = await gitlabRequest(req, 'POST', '/groups', groupData);
+
+        results.created.push({
+          id: createdGroup.id,
+          name: createdGroup.name,
+          full_path: createdGroup.full_path,
+        });
+
+        // 중첩된 서브그룹 생성
+        if (group.subgroups && group.subgroups.length > 0) {
+          await createSubgroupsRecursive(req, group.subgroups, createdGroup.id, createdGroup.full_path, {
+            results,
+            defaultSettings,
+            apiDelay,
+            skipExisting,
+            continueOnError,
+          });
+        }
+      }
+
+      // API rate limiting
+      await delay(apiDelay);
+
+    } catch (error) {
+      results.failed.push({
+        name: group.name,
+        path: group.path,
+        error: error.response?.data?.message || error.message,
+      });
+
+      if (!continueOnError) {
+        throw error;
+      }
+    }
+  }
+}
+
 // 계층적 서브그룹 생성
 router.post('/subgroups', async (req, res) => {
   try {
     const { parentId, subgroups, defaults = {}, options = {} } = req.body;
-    
+
     if (!parentId || !subgroups) {
       return res.status(400).json({ error: 'parentId and subgroups are required' });
     }
@@ -64,7 +139,7 @@ router.post('/subgroups', async (req, res) => {
       created: [],
       skipped: [],
       failed: [],
-      total: 0
+      total: 0,
     };
 
     // 기본 설정
@@ -73,84 +148,21 @@ router.post('/subgroups', async (req, res) => {
       request_access_enabled: true,
       project_creation_level: 'developer',
       subgroup_creation_level: 'maintainer',
-      ...defaults
+      ...defaults,
     };
 
-    const apiDelay = options.apiDelay || DEFAULT_API_DELAY;
+    const apiDelay = options.apiDelay || API_RATE_LIMIT.DEFAULT_DELAY;
     const skipExisting = options.skipExisting !== false;
     const continueOnError = options.continueOnError !== false;
 
-    // 재귀적으로 서브그룹 생성
-    async function createSubgroupsRecursive(groups, parentId, parentPath = '') {
-      for (const group of groups) {
-        results.total++;
-        
-        try {
-          // 기존 그룹 확인
-          let existingGroup = null;
-          if (skipExisting) {
-            try {
-              const searchPath = parentPath ? `${parentPath}/${group.path}` : group.path;
-              existingGroup = await gitlabRequest(req, 'GET', `/groups/${encodeURIComponent(searchPath)}`);
-            } catch (error) {
-              // 그룹이 없으면 생성 진행
-            }
-          }
-
-          if (existingGroup) {
-            results.skipped.push({
-              name: group.name,
-              path: group.path,
-              reason: 'Already exists'
-            });
-          } else {
-            // 그룹 생성
-            const groupData = {
-              name: group.name,
-              path: group.path,
-              parent_id: parentId,
-              ...defaultSettings,
-              ...group.settings,
-              description: group.description
-            };
-
-            const createdGroup = await gitlabRequest(req, 'POST', '/groups', groupData);
-            
-            results.created.push({
-              id: createdGroup.id,
-              name: createdGroup.name,
-              full_path: createdGroup.full_path
-            });
-
-            // 중첩된 서브그룹 생성
-            if (group.subgroups && group.subgroups.length > 0) {
-              await createSubgroupsRecursive(
-                group.subgroups, 
-                createdGroup.id,
-                createdGroup.full_path
-              );
-            }
-          }
-
-          // API rate limiting
-          await delay(apiDelay);
-          
-        } catch (error) {
-          results.failed.push({
-            name: group.name,
-            path: group.path,
-            error: error.response?.data?.message || error.message
-          });
-          
-          if (!continueOnError) {
-            throw error;
-          }
-        }
-      }
-    }
-
     // 서브그룹 생성 시작
-    await createSubgroupsRecursive(subgroups, parentId);
+    await createSubgroupsRecursive(req, subgroups, parentId, '', {
+      results,
+      defaultSettings,
+      apiDelay,
+      skipExisting,
+      continueOnError,
+    });
 
     res.json({
       success: true,
@@ -159,15 +171,14 @@ router.post('/subgroups', async (req, res) => {
         total: results.total,
         created: results.created.length,
         skipped: results.skipped.length,
-        failed: results.failed.length
-      }
+        failed: results.failed.length,
+      },
     });
 
   } catch (error) {
-    console.error('Bulk subgroups creation error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to create subgroups',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
     });
   }
 });
@@ -176,7 +187,7 @@ router.post('/subgroups', async (req, res) => {
 router.post('/projects', async (req, res) => {
   try {
     const { projects, defaults = {}, branchProtection = {}, ciVariables = {} } = req.body;
-    
+
     if (!projects || !Array.isArray(projects)) {
       return res.status(400).json({ error: 'projects array is required' });
     }
@@ -185,22 +196,22 @@ router.post('/projects', async (req, res) => {
       created: [],
       skipped: [],
       failed: [],
-      total: 0
+      total: 0,
     };
 
     const defaultSettings = {
       visibility: 'private',
       default_branch: 'main',
       initialize_with_readme: true,
-      ...defaults
+      ...defaults,
     };
 
     for (const projectGroup of projects) {
       const { group_id, projects: groupProjects } = projectGroup;
-      
+
       for (const project of groupProjects) {
         results.total++;
-        
+
         try {
           // 프로젝트 생성
           const projectData = {
@@ -209,15 +220,15 @@ router.post('/projects', async (req, res) => {
             ...defaultSettings,
             ...project.settings,
             description: project.description,
-            topics: project.topics
+            topics: project.topics,
           };
 
           const createdProject = await gitlabRequest(req, 'POST', '/projects', projectData);
-          
+
           results.created.push({
             id: createdProject.id,
             name: createdProject.name,
-            path_with_namespace: createdProject.path_with_namespace
+            path_with_namespace: createdProject.path_with_namespace,
           });
 
           // 브랜치 보호 규칙 설정
@@ -226,7 +237,7 @@ router.post('/projects', async (req, res) => {
             await gitlabRequest(req, 'POST', `/projects/${createdProject.id}/protected_branches`, {
               name: branchName,
               push_access_level: branchProtection.default.push_access_level || 30,
-              merge_access_level: branchProtection.default.merge_access_level || 40
+              merge_access_level: branchProtection.default.merge_access_level || 40,
             });
           }
 
@@ -236,17 +247,17 @@ router.post('/projects', async (req, res) => {
               await gitlabRequest(req, 'POST', `/projects/${createdProject.id}/variables`, {
                 key: variable.key,
                 value: variable.value,
-                protected: variable.protected || false
+                protected: variable.protected || false,
               });
             }
           }
 
-          await delay(DEFAULT_API_DELAY);
-          
+          await delay(API_RATE_LIMIT.DEFAULT_DELAY);
+
         } catch (error) {
           results.failed.push({
             name: project.name,
-            error: error.response?.data?.message || error.message
+            error: error.response?.data?.message || error.message,
           });
         }
       }
@@ -258,15 +269,15 @@ router.post('/projects', async (req, res) => {
       summary: {
         total: results.total,
         created: results.created.length,
-        failed: results.failed.length
-      }
+        failed: results.failed.length,
+      },
     });
 
   } catch (error) {
-    console.error('Bulk projects creation error:', error);
-    res.status(500).json({ 
+    // Error is handled by error middleware
+    res.status(500).json({
       error: 'Failed to create projects',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
     });
   }
 });
@@ -277,7 +288,7 @@ router.get('/health-check', async (req, res) => {
     const healthData = {
       timestamp: new Date().toISOString(),
       status: 'checking',
-      components: {}
+      components: {},
     };
 
     // 사용자 정보 확인
@@ -286,12 +297,12 @@ router.get('/health-check', async (req, res) => {
       healthData.components.authentication = {
         status: 'healthy',
         username: user.username,
-        isAdmin: user.is_admin
+        isAdmin: user.is_admin,
       };
     } catch (error) {
       healthData.components.authentication = {
         status: 'unhealthy',
-        error: error.message
+        error: error.message,
       };
     }
 
@@ -300,12 +311,12 @@ router.get('/health-check', async (req, res) => {
       const projects = await gitlabRequest(req, 'GET', '/projects?per_page=1', null, true);
       healthData.components.projects = {
         status: 'healthy',
-        totalCount: parseInt(projects.headers?.['x-total'] || '0')
+        totalCount: parseInt(projects.headers?.['x-total'] || '0'),
       };
     } catch (error) {
       healthData.components.projects = {
         status: 'unhealthy',
-        error: error.message
+        error: error.message,
       };
     }
 
@@ -314,12 +325,12 @@ router.get('/health-check', async (req, res) => {
       const groups = await gitlabRequest(req, 'GET', '/groups?per_page=1', null, true);
       healthData.components.groups = {
         status: 'healthy',
-        totalCount: parseInt(groups.headers?.['x-total'] || '0')
+        totalCount: parseInt(groups.headers?.['x-total'] || '0'),
       };
     } catch (error) {
       healthData.components.groups = {
         status: 'unhealthy',
-        error: error.message
+        error: error.message,
       };
     }
 
@@ -327,36 +338,36 @@ router.get('/health-check', async (req, res) => {
     try {
       const response = await axios.get(`${process.env.GITLAB_API_URL || 'https://gitlab.com/api/v4'}/version`, {
         headers: {
-          'PRIVATE-TOKEN': req.session.gitlabToken
-        }
+          'PRIVATE-TOKEN': req.session.gitlabToken,
+        },
       });
-      
+
       healthData.components.rateLimit = {
         status: 'healthy',
         limit: response.headers['ratelimit-limit'],
         remaining: response.headers['ratelimit-remaining'],
-        reset: response.headers['ratelimit-reset']
+        reset: response.headers['ratelimit-reset'],
       };
     } catch (error) {
       healthData.components.rateLimit = {
-        status: 'unknown'
+        status: 'unknown',
       };
     }
 
     // 전체 상태 결정
     const unhealthyComponents = Object.values(healthData.components)
-      .filter(c => c.status === 'unhealthy').length;
-    
-    healthData.status = unhealthyComponents === 0 ? 'healthy' : 
-                       unhealthyComponents < 2 ? 'degraded' : 'unhealthy';
+      .filter((c) => c.status === 'unhealthy').length;
+
+    healthData.status = unhealthyComponents === 0 ? 'healthy' :
+      unhealthyComponents < 2 ? 'degraded' : 'unhealthy';
 
     res.json(healthData);
 
   } catch (error) {
-    console.error('Health check error:', error);
-    res.status(500).json({ 
+    // Error logged: 'Health check error:', error);
+    res.status(500).json({
       error: 'Failed to perform health check',
-      message: error.message
+      message: error.message,
     });
   }
 });
@@ -368,10 +379,10 @@ router.post('/parse-yaml', (req, res) => {
     const parsed = yaml.load(content);
     res.json({ success: true, data: parsed });
   } catch (error) {
-    res.status(400).json({ 
-      success: false, 
+    res.status(400).json({
+      success: false,
       error: 'Invalid YAML format',
-      message: error.message 
+      message: error.message,
     });
   }
 });
@@ -380,7 +391,7 @@ router.post('/parse-yaml', (req, res) => {
 router.post('/settings/push-rules', async (req, res) => {
   try {
     const { projectIds, rules } = req.body;
-    
+
     if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
       return res.status(400).json({ error: 'projectIds array is required' });
     }
@@ -388,7 +399,7 @@ router.post('/settings/push-rules', async (req, res) => {
     const results = {
       success: [],
       failed: [],
-      total: projectIds.length
+      total: projectIds.length,
     };
 
     for (const projectId of projectIds) {
@@ -405,15 +416,15 @@ router.post('/settings/push-rules', async (req, res) => {
           file_name_regex: rules.file_name_regex || '',
           max_file_size: rules.max_file_size || 0,
           commit_committer_check: rules.commit_committer_check || false,
-          reject_unsigned_commits: rules.reject_unsigned_commits || false
+          reject_unsigned_commits: rules.reject_unsigned_commits || false,
         });
-        
+
         results.success.push(projectId);
-        await delay(DEFAULT_API_DELAY);
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
       } catch (error) {
         results.failed.push({
           projectId,
-          error: error.response?.data?.message || error.message
+          error: error.response?.data?.message || error.message,
         });
       }
     }
@@ -424,15 +435,15 @@ router.post('/settings/push-rules', async (req, res) => {
       summary: {
         total: results.total,
         success: results.success.length,
-        failed: results.failed.length
-      }
+        failed: results.failed.length,
+      },
     });
 
   } catch (error) {
-    console.error('Bulk push rules error:', error);
-    res.status(500).json({ 
+    // Error logged: 'Bulk push rules error:', error);
+    res.status(500).json({
       error: 'Failed to set push rules',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
     });
   }
 });
@@ -441,7 +452,7 @@ router.post('/settings/push-rules', async (req, res) => {
 router.post('/settings/protected-branches', async (req, res) => {
   try {
     const { projectIds, branches } = req.body;
-    
+
     if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
       return res.status(400).json({ error: 'projectIds array is required' });
     }
@@ -449,7 +460,7 @@ router.post('/settings/protected-branches', async (req, res) => {
     const results = {
       success: [],
       failed: [],
-      total: projectIds.length
+      total: projectIds.length,
     };
 
     for (const projectId of projectIds) {
@@ -470,16 +481,16 @@ router.post('/settings/protected-branches', async (req, res) => {
             merge_access_level: branch.merge_access_level || 40, // Maintainer
             unprotect_access_level: branch.unprotect_access_level || 40,
             allow_force_push: branch.allow_force_push || false,
-            code_owner_approval_required: branch.code_owner_approval_required || false
+            code_owner_approval_required: branch.code_owner_approval_required || false,
           });
         }
-        
+
         results.success.push(projectId);
-        await delay(DEFAULT_API_DELAY);
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
       } catch (error) {
         results.failed.push({
           projectId,
-          error: error.response?.data?.message || error.message
+          error: error.response?.data?.message || error.message,
         });
       }
     }
@@ -490,15 +501,15 @@ router.post('/settings/protected-branches', async (req, res) => {
       summary: {
         total: results.total,
         success: results.success.length,
-        failed: results.failed.length
-      }
+        failed: results.failed.length,
+      },
     });
 
   } catch (error) {
-    console.error('Bulk protected branches error:', error);
-    res.status(500).json({ 
+    // Error logged: 'Bulk protected branches error:', error);
+    res.status(500).json({
       error: 'Failed to set protected branches',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
     });
   }
 });
@@ -507,11 +518,11 @@ router.post('/settings/protected-branches', async (req, res) => {
 router.post('/settings/visibility', async (req, res) => {
   try {
     const { items, visibility } = req.body;
-    
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'items array is required' });
     }
-    
+
     if (!['private', 'internal', 'public'].includes(visibility)) {
       return res.status(400).json({ error: 'Invalid visibility level' });
     }
@@ -519,29 +530,29 @@ router.post('/settings/visibility', async (req, res) => {
     const results = {
       success: [],
       failed: [],
-      total: items.length
+      total: items.length,
     };
 
     for (const item of items) {
       try {
-        const endpoint = item.type === 'group' 
+        const endpoint = item.type === 'group'
           ? `/groups/${item.id}`
           : `/projects/${item.id}`;
-          
+
         await gitlabRequest(req, 'PUT', endpoint, { visibility });
-        
+
         results.success.push({
           id: item.id,
           name: item.name,
-          type: item.type
+          type: item.type,
         });
-        await delay(DEFAULT_API_DELAY);
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
       } catch (error) {
         results.failed.push({
           id: item.id,
           name: item.name,
           type: item.type,
-          error: error.response?.data?.message || error.message
+          error: error.response?.data?.message || error.message,
         });
       }
     }
@@ -552,15 +563,15 @@ router.post('/settings/visibility', async (req, res) => {
       summary: {
         total: results.total,
         success: results.success.length,
-        failed: results.failed.length
-      }
+        failed: results.failed.length,
+      },
     });
 
   } catch (error) {
-    console.error('Bulk visibility error:', error);
-    res.status(500).json({ 
+    // Error logged: 'Bulk visibility error:', error);
+    res.status(500).json({
       error: 'Failed to set visibility',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
     });
   }
 });
@@ -569,7 +580,7 @@ router.post('/settings/visibility', async (req, res) => {
 router.post('/settings/access-levels', async (req, res) => {
   try {
     const { items, settings } = req.body;
-    
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'items array is required' });
     }
@@ -577,7 +588,7 @@ router.post('/settings/access-levels', async (req, res) => {
     const results = {
       success: [],
       failed: [],
-      total: items.length
+      total: items.length,
     };
 
     for (const item of items) {
@@ -594,7 +605,7 @@ router.post('/settings/access-levels', async (req, res) => {
           if (settings.request_access_enabled !== undefined) {
             updates.request_access_enabled = settings.request_access_enabled;
           }
-          
+
           await gitlabRequest(req, 'PUT', `/groups/${item.id}`, updates);
         } else {
           // Update project settings
@@ -611,22 +622,22 @@ router.post('/settings/access-levels', async (req, res) => {
           if (settings.snippets_access_level) {
             updates.snippets_access_level = settings.snippets_access_level;
           }
-          
+
           await gitlabRequest(req, 'PUT', `/projects/${item.id}`, updates);
         }
-        
+
         results.success.push({
           id: item.id,
           name: item.name,
-          type: item.type
+          type: item.type,
         });
-        await delay(DEFAULT_API_DELAY);
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
       } catch (error) {
         results.failed.push({
           id: item.id,
           name: item.name,
           type: item.type,
-          error: error.response?.data?.message || error.message
+          error: error.response?.data?.message || error.message,
         });
       }
     }
@@ -637,15 +648,15 @@ router.post('/settings/access-levels', async (req, res) => {
       summary: {
         total: results.total,
         success: results.success.length,
-        failed: results.failed.length
-      }
+        failed: results.failed.length,
+      },
     });
 
   } catch (error) {
-    console.error('Bulk access levels error:', error);
-    res.status(500).json({ 
+    // Error logged: 'Bulk access levels error:', error);
+    res.status(500).json({
       error: 'Failed to set access levels',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
     });
   }
 });
@@ -654,7 +665,7 @@ router.post('/settings/access-levels', async (req, res) => {
 router.post('/delete', async (req, res) => {
   try {
     const { items } = req.body;
-    
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'items array is required' });
     }
@@ -662,36 +673,36 @@ router.post('/delete', async (req, res) => {
     const results = {
       success: [],
       failed: [],
-      total: items.length
+      total: items.length,
     };
 
     // Sort items to delete projects before groups
     const sortedItems = [...items].sort((a, b) => {
-      if (a.type === 'project' && b.type === 'group') return -1;
-      if (a.type === 'group' && b.type === 'project') return 1;
+      if (a.type === 'project' && b.type === 'group') {return -1;}
+      if (a.type === 'group' && b.type === 'project') {return 1;}
       return 0;
     });
 
     for (const item of sortedItems) {
       try {
-        const endpoint = item.type === 'group' 
+        const endpoint = item.type === 'group'
           ? `/groups/${item.id}`
           : `/projects/${item.id}`;
-          
+
         await gitlabRequest(req, 'DELETE', endpoint);
-        
+
         results.success.push({
           id: item.id,
           name: item.name,
-          type: item.type
+          type: item.type,
         });
-        await delay(DEFAULT_API_DELAY);
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
       } catch (error) {
         results.failed.push({
           id: item.id,
           name: item.name,
           type: item.type,
-          error: error.response?.data?.message || error.message
+          error: error.response?.data?.message || error.message,
         });
       }
     }
@@ -702,15 +713,15 @@ router.post('/delete', async (req, res) => {
       summary: {
         total: results.total,
         success: results.success.length,
-        failed: results.failed.length
-      }
+        failed: results.failed.length,
+      },
     });
 
   } catch (error) {
-    console.error('Bulk delete error:', error);
-    res.status(500).json({ 
+    // Error logged: 'Bulk delete error:', error);
+    res.status(500).json({
       error: 'Failed to delete items',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
     });
   }
 });

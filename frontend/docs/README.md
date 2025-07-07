@@ -1,92 +1,44 @@
-# Frontend Documentation
+# 📚 GitLab Bulk Manager 문서
 
-Comprehensive documentation for the GitLab Bulk Manager frontend application.
+GitLab Bulk Manager 문서에 오신 것을 환영합니다!
 
-## 📚 Documentation Index
+## 🇰🇷 한국어 문서
 
-### Getting Started
-- **[Getting Started Guide](./getting-started.md)** - Installation, setup, and first steps
-- **[Development Guide](./development.md)** - Development environment setup and workflow
+[![한국어 문서](https://img.shields.io/badge/문서-한국어-red?style=for-the-badge)](./ko/README.md)
 
-### Architecture & Design
-- **[Architecture Overview](./architecture.md)** - System architecture, patterns, and design decisions
-- **[Components Documentation](./components.md)** - Detailed component reference and usage
-- **[API Integration](./api-integration.md)** - Backend API communication and service layer
+[**한국어 문서 보기 →**](./ko/README.md)
 
-### Features
-- **[Features Overview](./features.md)** - Complete feature documentation
-- **[Permission Tree](./permission-tree.md)** - User permissions visualization component
+---
 
-### Development & Testing
-- **[Testing Guide](./testing.md)** - Unit, integration, and E2E testing strategies
-- **[Deployment Guide](./deployment.md)** - Production deployment and DevOps
+## 🚀 빠른 링크
 
-## 🏗️ Project Structure
+- [시작하기](./ko/getting-started.md)
+- [아키텍처](./ko/architecture.md)
+- [기능](./ko/features.md)
+- [API 레퍼런스](./ko/api-reference.md)
 
-```
-frontend/
-├── src/
-│   ├── components/       # Reusable UI components
-│   │   ├── GitLabTree.tsx    # Hierarchical tree view
-│   │   ├── PermissionTree.tsx # Permission visualization
-│   │   ├── Layout.tsx        # App layout wrapper
-│   │   └── bulk/            # Bulk operation components
-│   ├── pages/           # Route page components
-│   ├── services/        # API service layer
-│   ├── store/          # Redux state management
-│   │   └── slices/     # Redux slices
-│   ├── hooks/          # Custom React hooks
-│   ├── types/          # TypeScript type definitions
-│   └── utils/          # Utility functions
-├── public/             # Static assets
-├── docs/              # This documentation
-└── e2e/               # End-to-end tests
+## 📋 문서 구조
+
+```mermaid
+graph LR
+    A[문서 루트] --> K[🇰🇷 한국어 /ko]
+    
+    K --> K1[시작하기]
+    K --> K2[아키텍처]
+    K --> K3[기능]
+    K --> K4[API 레퍼런스]
+    K --> K5[개발]
+    K --> K6[테스팅]
+    K --> K7[배포]
 ```
 
-## 🚀 Key Features
+## 🔧 문서 기여하기
 
-- **GitLab Integration**: Full integration with GitLab API for groups, projects, and members management
-- **Bulk Operations**: CSV-based bulk import for groups, projects, and members
-- **Permission Management**: Visual permission tree showing user access levels
-- **Real-time Updates**: WebSocket integration for job progress tracking
-- **Modern UI**: Material-UI based responsive interface
+문서에 기여할 때:
+- 명확하고 간결한 언어 사용
+- 적절한 코드 예제 포함
+- 마지막 수정 날짜 업데이트
 
-## 🛠️ Technology Stack
+---
 
-- **React 18** with TypeScript
-- **Redux Toolkit** for state management
-- **Material-UI v5** for UI components
-- **Vite** for build tooling
-- **React Router v6** for routing
-- **Axios** for HTTP requests
-- **Socket.io** for WebSocket communication
-
-## 📋 Documentation Status
-
-| Document | Status | Last Updated |
-|----------|--------|-------------|
-| Getting Started | ⚠️ Incomplete | Needs completion |
-| Architecture | ✅ Complete | Current |
-| Components | ⚠️ Needs Update | Missing PermissionTree |
-| API Integration | ✅ Complete | Current |
-| Features | ✅ Complete | Current |
-| Development | ✅ Complete | Current |
-| Testing | ✅ Complete | Current |
-| Deployment | ✅ Complete | Current |
-| Permission Tree | ❌ Missing | To be created |
-
-## 🔄 Keeping Documentation Updated
-
-When making changes to the codebase:
-1. Update relevant documentation files
-2. Add examples for new features
-3. Update the status table above
-4. Ensure code examples are tested and working
-
-## 📞 Getting Help
-
-If you need help:
-1. Check the relevant documentation section
-2. Look for examples in the codebase
-3. Review the test files for usage patterns
-4. Create an issue for documentation improvements
+**최종 업데이트**: 2025-07-06

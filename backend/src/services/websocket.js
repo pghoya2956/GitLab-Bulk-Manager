@@ -7,14 +7,14 @@ export const setupWebSocket = (io) => {
     logger.info(`WebSocket client connected: ${socket.id}`);
 
     // Authenticate the socket connection
-    socket.on('authenticate', (token) => {
+    socket.on('authenticate', (_token) => {
       // In production, validate the token against session
       connectedClients.set(socket.id, {
         socketId: socket.id,
         authenticated: true,
         subscribedJobs: new Set(),
         subscribedGroups: new Set(),
-        subscribedProjects: new Set()
+        subscribedProjects: new Set(),
       });
 
       socket.emit('authenticated', { success: true });
@@ -103,6 +103,6 @@ export const setupWebSocket = (io) => {
     },
     broadcast: (event, data) => {
       io.emit(event, data);
-    }
+    },
   };
 };

@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { store } from '../store';
 import { addNotification } from '../store/slices/notificationSlice';
+import { WebSocketMessage } from '../types/gitlab';
 
 export enum WebSocketEvent {
   // Connection events
@@ -35,7 +36,7 @@ export enum WebSocketEvent {
 
 class WebSocketService {
   private socket: Socket | null = null;
-  private reconnectAttempts = 0;
+  // private reconnectAttempts = 0; // Will be used for reconnect logic
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
 
@@ -60,12 +61,11 @@ class WebSocketService {
   }
 
   private setupEventListeners() {
-    if (!this.socket) return;
+    if (!this.socket) {return;}
 
     // Connection events
     this.socket.on(WebSocketEvent.CONNECT, () => {
-      console.log('WebSocket connected');
-      this.reconnectAttempts = 0;
+      // this.reconnectAttempts = 0;
       store.dispatch(addNotification({
         type: 'success',
         message: '실시간 연결이 설정되었습니다',
@@ -73,15 +73,13 @@ class WebSocketService {
     });
 
     this.socket.on(WebSocketEvent.DISCONNECT, (reason) => {
-      console.log('WebSocket disconnected:', reason);
       if (reason === 'io server disconnect') {
         // Server initiated disconnect, try to reconnect
         this.socket?.connect();
       }
     });
 
-    this.socket.on(WebSocketEvent.ERROR, (error) => {
-      console.error('WebSocket error:', error);
+    this.socket.on(WebSocketEvent.ERROR, () => {
       store.dispatch(addNotification({
         type: 'error',
         message: '실시간 연결 오류가 발생했습니다',
@@ -153,21 +151,21 @@ class WebSocketService {
     }
   }
 
-  emit(event: string, data?: any) {
+  emit<T = unknown>(event: string, data?: T) {
     if (this.socket?.connected) {
       this.socket.emit(event, data);
     } else {
-      console.warn('WebSocket is not connected');
+      // WebSocket is not connected, silently ignore
     }
   }
 
-  on(event: string, callback: (data: any) => void) {
+  on<T = WebSocketMessage>(event: string, callback: (data: T) => void) {
     if (this.socket) {
       this.socket.on(event, callback);
     }
   }
 
-  off(event: string, callback?: (data: any) => void) {
+  off<T = WebSocketMessage>(event: string, callback?: (data: T) => void) {
     if (this.socket) {
       this.socket.off(event, callback);
     }

@@ -13,12 +13,11 @@ import { corsConfig } from './config/cors.js';
 import authRoutes from './routes/auth.js';
 import gitlabRoutes from './routes/gitlab.js';
 import bulkRoutes from './routes/bulk.js';
-import testRoutes from './routes/test.js';
 import statsRoutes from './routes/stats.js';
 import permissionsRoutes from './routes/permissions.js';
 import docsRoutes from './routes/docs.js';
 import { authenticateToken } from './middleware/auth.js';
-import { errorHandler } from './middleware/errorHandler.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { setupWebSocket } from './services/websocket.js';
 
 // Load environment variables
@@ -27,7 +26,7 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: corsConfig
+  cors: corsConfig,
 });
 
 // Security middleware
@@ -57,12 +56,20 @@ app.use('/api/stats', authenticateToken, statsRoutes);
 app.use('/api/permissions', authenticateToken, permissionsRoutes);
 app.use('/api/gitlab/bulk', authenticateToken, bulkRoutes);
 app.use('/api/gitlab', authenticateToken, gitlabRoutes);
-app.use('/api', testRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    version: process.env.npm_package_version || '1.0.0',
+  });
 });
+
+// 404 handler
+app.use(notFoundHandler);
 
 // Error handling
 app.use(errorHandler);
@@ -72,11 +79,10 @@ setupWebSocket(io);
 
 // Start server
 const PORT = process.env.PORT || 4000;
-const WEBSOCKET_PORT = process.env.WEBSOCKET_PORT || 3001;
 
 httpServer.listen(PORT, () => {
   logger.info(`Backend server running on port ${PORT}`);
-  logger.info(`WebSocket server integrated on same port`);
+  logger.info('WebSocket server integrated on same port');
 });
 
 // Graceful shutdown

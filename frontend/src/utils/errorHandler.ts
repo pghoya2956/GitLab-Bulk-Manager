@@ -3,12 +3,19 @@ import axios, { AxiosError } from 'axios';
 export interface ApiError {
   message: string;
   statusCode?: number;
-  details?: any;
+  details?: unknown;
+}
+
+interface GitLabApiError {
+  message?: string;
+  error?: string;
+  error_description?: string;
+  errors?: Record<string, string[]>;
 }
 
 export const handleApiError = (error: unknown): ApiError => {
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<any>;
+    const axiosError = error as AxiosError<GitLabApiError>;
     
     // Handle specific GitLab API error formats
     if (axiosError.response) {

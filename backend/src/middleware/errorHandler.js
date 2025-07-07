@@ -1,44 +1,61 @@
-import logger from '../utils/logger.js';
+// Centralized error handling middleware
 
-export const errorHandler = (err, req, res, next) => {
-  // Log error details
-  logger.error({
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip
-  });
+const errorHandler = (err, req, res, next) => {
+  // Default error status and message
+  let status = err.status || err.statusCode || 500;
+  let message = err.message || 'Internal Server Error';
+  let error = 'Error';
 
   // Handle specific error types
-  if (err.response) {
-    // GitLab API error
-    return res.status(err.response.status || 500).json({
-      error: 'GitLab API Error',
-      message: err.response.data?.message || err.message,
-      details: err.response.data
-    });
-  }
-
   if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      error: 'Validation Error',
-      message: err.message
+    status = 400;
+    error = 'Validation Error';
+    message = Object.values(err.errors).map(e => e.message).join(', ');
+  } else if (err.name === 'CastError') {
+    status = 400;
+    error = 'Invalid ID';
+    message = 'Invalid resource identifier';
+  } else if (err.code === 11000) {
+    status = 409;
+    error = 'Duplicate Error';
+    message = 'Resource already exists';
+  } else if (err.response) {
+    // Axios error from GitLab API
+    status = err.response.status;
+    message = err.response.data?.message || err.response.data?.error || message;
+    error = err.response.data?.error || error;
+  }
+
+  // Log error for debugging (in production, use proper logging service)
+  if (process.env.NODE_ENV !== 'test') {
+    console.error(`Error ${status}: ${message}`, {
+      url: req.url,
+      method: req.method,
+      body: req.body,
+      params: req.params,
+      query: req.query,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     });
   }
 
-  if (err.name === 'UnauthorizedError') {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid or expired token'
-    });
-  }
-
-  // Default error response
-  res.status(err.status || 500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'production' 
-      ? 'An error occurred processing your request'
-      : err.message
+  // Send error response
+  res.status(status).json({
+    error,
+    message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };
+
+// Async error wrapper
+const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+// Not found handler
+const notFoundHandler = (req, res, next) => {
+  const error = new Error(`Not Found - ${req.originalUrl}`);
+  error.status = 404;
+  next(error);
+};
+
+export { errorHandler, asyncHandler, notFoundHandler };

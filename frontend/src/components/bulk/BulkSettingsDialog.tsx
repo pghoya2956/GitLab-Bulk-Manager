@@ -14,7 +14,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
   Chip,
 } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
@@ -25,6 +24,7 @@ import { BulkPushRulesForm } from './BulkPushRulesForm';
 import { BulkAccessLevelsForm } from './BulkAccessLevelsForm';
 import { gitlabService } from '../../services/gitlab';
 import { useNotification } from '../../hooks/useNotification';
+import type { GitLabPushRule, GitLabProtectedBranch } from '../../types/gitlab';
 
 interface BulkSettingsDialogProps {
   open: boolean;
@@ -36,6 +36,11 @@ interface BulkSettingsDialogProps {
     full_path: string;
   }>;
   onSuccess?: () => void;
+}
+
+interface BulkOperationResults {
+  successful: Array<{ id: number; name: string }>;
+  failed: Array<{ id: number; name: string; error: string }>;
 }
 
 interface TabPanelProps {
@@ -65,7 +70,7 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
 }) => {
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<BulkOperationResults | null>(null);
   const { showSuccess, showError } = useNotification();
 
   const projects = selectedItems.filter(item => item.type === 'project');
@@ -81,85 +86,91 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
       }));
 
       const response = await gitlabService.bulkSetVisibility(items, visibility);
-      setResults(response.results);
-      
-      if (response.results.success.length > 0) {
-        showSuccess(`Successfully updated visibility for ${response.results.success.length} items`);
+      if (response.results) {
+        setResults(response.results);
+        
+        if (response.results.successful?.length > 0) {
+          showSuccess(`Successfully updated visibility for ${response.results.successful.length} items`);
+        }
+        if (response.results.failed?.length > 0) {
+          showError(`Failed to update ${response.results.failed.length} items`);
+        }
+        
+        if (onSuccess && response.results.successful?.length > 0) {
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 2000);
+        }
       }
-      if (response.results.failed.length > 0) {
-        showError(`Failed to update ${response.results.failed.length} items`);
-      }
-      
-      if (onSuccess && response.results.success.length > 0) {
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 2000);
-      }
-    } catch (error: any) {
-      showError(error.message || 'Failed to update visibility');
+    } catch (error) {
+      showError((error as Error).message || 'Failed to update visibility');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleProtectedBranchesSubmit = async (branches: any) => {
+  const handleProtectedBranchesSubmit = async (branches: { deleteExisting: boolean; rules: Array<{ name: string; push_access_level: number; merge_access_level: number }> }) => {
     setLoading(true);
     try {
       const projectIds = projects.map(p => parseInt(p.id.replace('project-', '')));
       
-      const response = await gitlabService.bulkSetProtectedBranches(projectIds, branches);
-      setResults(response.results);
-      
-      if (response.results.success.length > 0) {
-        showSuccess(`Successfully updated protected branches for ${response.results.success.length} projects`);
+      const response = await gitlabService.bulkSetProtectedBranches(projectIds, branches.rules as unknown as GitLabProtectedBranch[]);
+      if (response.results) {
+        setResults(response.results);
+        
+        if (response.results.successful?.length > 0) {
+          showSuccess(`Successfully updated protected branches for ${response.results.successful.length} projects`);
+        }
+        if (response.results.failed?.length > 0) {
+          showError(`Failed to update ${response.results.failed.length} projects`);
+        }
+        
+        if (onSuccess && response.results.successful?.length > 0) {
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 2000);
+        }
       }
-      if (response.results.failed.length > 0) {
-        showError(`Failed to update ${response.results.failed.length} projects`);
-      }
-      
-      if (onSuccess && response.results.success.length > 0) {
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 2000);
-      }
-    } catch (error: any) {
-      showError(error.message || 'Failed to update protected branches');
+    } catch (error) {
+      showError((error as Error).message || 'Failed to update protected branches');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePushRulesSubmit = async (rules: any) => {
+  const handlePushRulesSubmit = async (rules: Partial<GitLabPushRule>) => {
     setLoading(true);
     try {
       const projectIds = projects.map(p => parseInt(p.id.replace('project-', '')));
       
       const response = await gitlabService.bulkSetPushRules(projectIds, rules);
-      setResults(response.results);
-      
-      if (response.results.success.length > 0) {
-        showSuccess(`Successfully updated push rules for ${response.results.success.length} projects`);
+      if (response.results) {
+        setResults(response.results);
+        
+        if (response.results.successful?.length > 0) {
+          showSuccess(`Successfully updated push rules for ${response.results.successful.length} projects`);
+        }
+        if (response.results.failed?.length > 0) {
+          showError(`Failed to update ${response.results.failed.length} projects`);
+        }
+        
+        if (onSuccess && response.results.successful?.length > 0) {
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 2000);
+        }
       }
-      if (response.results.failed.length > 0) {
-        showError(`Failed to update ${response.results.failed.length} projects`);
-      }
-      
-      if (onSuccess && response.results.success.length > 0) {
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 2000);
-      }
-    } catch (error: any) {
-      showError(error.message || 'Failed to update push rules');
+    } catch (error) {
+      showError((error as Error).message || 'Failed to update push rules');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAccessLevelsSubmit = async (settings: any) => {
+  const handleAccessLevelsSubmit = async (settings: { groups?: Record<string, string>; projects?: Record<string, string> }) => {
     setLoading(true);
     try {
       const items = selectedItems.map(item => ({
@@ -169,23 +180,25 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
       }));
 
       const response = await gitlabService.bulkSetAccessLevels(items, settings);
-      setResults(response.results);
-      
-      if (response.results.success.length > 0) {
-        showSuccess(`Successfully updated access levels for ${response.results.success.length} items`);
+      if (response.results) {
+        setResults(response.results);
+        
+        if (response.results.successful?.length > 0) {
+          showSuccess(`Successfully updated access levels for ${response.results.successful.length} items`);
+        }
+        if (response.results.failed?.length > 0) {
+          showError(`Failed to update ${response.results.failed.length} items`);
+        }
+        
+        if (onSuccess && response.results.successful?.length > 0) {
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 2000);
+        }
       }
-      if (response.results.failed.length > 0) {
-        showError(`Failed to update ${response.results.failed.length} items`);
-      }
-      
-      if (onSuccess && response.results.success.length > 0) {
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 2000);
-      }
-    } catch (error: any) {
-      showError(error.message || 'Failed to update access levels');
+    } catch (error) {
+      showError((error as Error).message || 'Failed to update access levels');
     } finally {
       setLoading(false);
     }
@@ -252,7 +265,7 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
               Operation Complete
             </Typography>
             <Typography variant="body2">
-              Success: {results.success.length} | Failed: {results.failed.length}
+              Success: {results.successful.length} | Failed: {results.failed.length}
             </Typography>
             {results.failed.length > 0 && (
               <Box sx={{ mt: 1 }}>
@@ -260,10 +273,10 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
                   Failed items:
                 </Typography>
                 <List dense>
-                  {results.failed.slice(0, 5).map((item: any, index: number) => (
+                  {results.failed.slice(0, 5).map((item, index) => (
                     <ListItem key={index}>
                       <ListItemText 
-                        primary={item.name || item.projectId}
+                        primary={item.name}
                         secondary={item.error}
                       />
                     </ListItem>
@@ -282,7 +295,7 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
         {/* Settings Tabs */}
         {!results && (
           <>
-            <Tabs value={tab} onChange={(e, v) => setTab(v)}>
+            <Tabs value={tab} onChange={(_, v) => setTab(v)}>
               <Tab label="Visibility" />
               <Tab label="Protected Branches" disabled={projects.length === 0} />
               <Tab label="Push Rules" disabled={projects.length === 0} />

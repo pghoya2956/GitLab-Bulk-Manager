@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { GitLabPushRule } from '../../types/gitlab';
 import {
   Box,
   TextField,
@@ -12,7 +13,7 @@ import {
 } from '@mui/material';
 
 interface BulkPushRulesFormProps {
-  onSubmit: (rules: any) => void;
+  onSubmit: (rules: Partial<GitLabPushRule>) => void;
   disabled?: boolean;
   projectCount: number;
 }
@@ -22,7 +23,7 @@ export const BulkPushRulesForm: React.FC<BulkPushRulesFormProps> = ({
   disabled,
   projectCount,
 }) => {
-  const [rules, setRules] = useState({
+  const [rules, setRules] = useState<Partial<GitLabPushRule>>({
     deny_delete_tag: false,
     member_check: false,
     prevent_secrets: true,
@@ -36,7 +37,7 @@ export const BulkPushRulesForm: React.FC<BulkPushRulesFormProps> = ({
     reject_unsigned_commits: false,
   });
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: keyof GitLabPushRule, value: any) => {
     setRules({ ...rules, [field]: value });
   };
 

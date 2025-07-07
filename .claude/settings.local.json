@@ -77,7 +77,16 @@
       "Bash(./stop.sh)",
       "WebFetch(domain:docs.gitlab.com)",
       "Bash(cat:*)",
-      "Bash(./manage.sh:*)"
+      "Bash(./manage.sh:*)",
+      "Bash(npm test)",
+      "Bash(npm test:*)",
+      "Bash(npx husky-init:*)",
+      "Bash(./scripts/update-urls.sh:*)",
+      "Bash(npx tsc:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(./node_modules/.bin/eslint src --ext .js)",
+      "Bash(sed:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": []
   }

@@ -12,15 +12,15 @@ router.post('/login', async (req, res, next) => {
     if (!gitlabUrl || !token) {
       return res.status(400).json({
         error: 'Missing credentials',
-        message: 'GitLab URL and token are required'
+        message: 'GitLab URL and token are required',
       });
     }
 
     // Validate token by fetching user info
     const response = await axios.get(`${gitlabUrl}/api/v4/user`, {
       headers: {
-        'PRIVATE-TOKEN': token
-      }
+        'PRIVATE-TOKEN': token,
+      },
     });
 
     const user = response.data;
@@ -37,7 +37,7 @@ router.post('/login', async (req, res, next) => {
       is_admin: user.is_admin,
       created_at: user.created_at,
       avatar_url: user.avatar_url,
-      web_url: user.web_url
+      web_url: user.web_url,
     };
 
     // Save session
@@ -52,7 +52,7 @@ router.post('/login', async (req, res, next) => {
       res.json({
         success: true,
         user: req.session.user,
-        message: 'Login successful'
+        message: 'Login successful',
       });
     });
 
@@ -60,7 +60,7 @@ router.post('/login', async (req, res, next) => {
     if (error.response?.status === 401) {
       return res.status(401).json({
         error: 'Invalid credentials',
-        message: 'The provided token is invalid or expired'
+        message: 'The provided token is invalid or expired',
       });
     }
     next(error);
@@ -70,21 +70,21 @@ router.post('/login', async (req, res, next) => {
 // Logout endpoint
 router.post('/logout', (req, res) => {
   const username = req.session.user?.username;
-  
+
   req.session.destroy((err) => {
     if (err) {
       logger.error('Session destroy error:', err);
       return res.status(500).json({
         error: 'Logout failed',
-        message: 'Could not destroy session'
+        message: 'Could not destroy session',
       });
     }
 
     logger.info(`User ${username} logged out`);
-    
+
     res.json({
       success: true,
-      message: 'Logout successful'
+      message: 'Logout successful',
     });
   });
 });
@@ -94,11 +94,11 @@ router.get('/session', (req, res) => {
   if (req.session && req.session.user) {
     res.json({
       authenticated: true,
-      user: req.session.user
+      user: req.session.user,
     });
   } else {
     res.json({
-      authenticated: false
+      authenticated: false,
     });
   }
 });

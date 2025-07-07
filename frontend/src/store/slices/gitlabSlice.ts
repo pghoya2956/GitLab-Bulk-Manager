@@ -1,9 +1,10 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { GitLabGroup, GitLabProject, GitLabUser } from '../../types/gitlab';
 
 interface GitLabState {
-  groups: any[];
-  projects: any[];
-  users: any[];
+  groups: GitLabGroup[];
+  projects: GitLabProject[];
+  users: GitLabUser[];
 }
 
 const initialState: GitLabState = {
@@ -16,13 +17,13 @@ const gitlabSlice = createSlice({
   name: 'gitlab',
   initialState,
   reducers: {
-    setGroups: (state, action) => {
+    setGroups: (state, action: PayloadAction<GitLabGroup[]>) => {
       state.groups = action.payload;
     },
-    setProjects: (state, action) => {
+    setProjects: (state, action: PayloadAction<GitLabProject[]>) => {
       state.projects = action.payload;
     },
-    setUsers: (state, action) => {
+    setUsers: (state, action: PayloadAction<GitLabUser[]>) => {
       state.users = action.payload;
     },
   },

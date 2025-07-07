@@ -5,11 +5,11 @@ export const gitlabProxy = async (req, res, next) => {
   try {
     const gitlabUrl = req.gitlabUrl;
     const gitlabToken = req.gitlabToken;
-    
+
     // Build the full URL
     const path = req.path.replace(/^\//, ''); // Remove leading slash
     const url = `${gitlabUrl}/api/v4/${path}`;
-    
+
     // Prepare request config
     const config = {
       method: req.method,
@@ -17,9 +17,9 @@ export const gitlabProxy = async (req, res, next) => {
       headers: {
         'PRIVATE-TOKEN': gitlabToken,
         'Content-Type': 'application/json',
-        ...req.headers
+        ...req.headers,
       },
-      params: req.query
+      params: req.query,
     };
 
     // Add body for POST/PUT/PATCH requests
@@ -70,7 +70,7 @@ export const gitlabProxy = async (req, res, next) => {
     if (req.query._includePagination === 'true') {
       res.status(response.status).json({
         data: response.data,
-        pagination: paginationHeaders
+        pagination: paginationHeaders,
       });
     } else {
       res.status(response.status).json(response.data);
@@ -83,10 +83,10 @@ export const gitlabProxy = async (req, res, next) => {
       return res.status(error.response.status).json({
         error: 'GitLab API Error',
         message: error.response.data?.message || error.message,
-        details: error.response.data
+        details: error.response.data,
       });
     }
-    
+
     // Network or other error
     logger.error('Proxy error:', error.message);
     next(error);

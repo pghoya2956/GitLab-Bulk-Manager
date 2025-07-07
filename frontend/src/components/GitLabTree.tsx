@@ -25,7 +25,13 @@ interface TreeNode {
   visibility?: string;
   description?: string;
   parent_id?: number | null;
-  namespace?: any;
+  namespace?: {
+    id: number;
+    name: string;
+    path: string;
+    kind: string;
+    full_path: string;
+  };
   children?: string[]; // Changed to string[] to store child IDs
   hasChildren?: boolean;
   isLoading?: boolean;
@@ -147,7 +153,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       const data = await gitlabService.getPermissionsOverview();
       setPermissionsData(data);
     } catch (error) {
-      console.error('Failed to load permissions:', error);
+      // Silently fail - permissions are optional enhancement
     }
   };
 
@@ -197,10 +203,10 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
         if (permissionsData?.groups) {
           const findGroupPermission = (groups: any[]): any => {
             for (const g of groups) {
-              if (g.id === group.id) return g;
+              if (g.id === group.id) {return g;}
               if (g.subgroups) {
                 const found = findGroupPermission(g.subgroups);
-                if (found) return found;
+                if (found) {return found;}
               }
             }
             return null;
@@ -242,7 +248,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
 
   const loadChildren = async (nodeId: string) => {
     const node = nodes[nodeId];
-    if (!node || node.children || node.isLoading) return;
+    if (!node || node.children || node.isLoading) {return;}
 
     try {
       // Mark as loading
@@ -271,10 +277,10 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
         if (permissionsData?.groups) {
           const findGroupPermission = (groups: any[]): any => {
             for (const g of groups) {
-              if (g.id === group.id) return g;
+              if (g.id === group.id) {return g;}
               if (g.subgroups) {
                 const found = findGroupPermission(g.subgroups);
-                if (found) return found;
+                if (found) {return found;}
               }
             }
             return null;
@@ -309,11 +315,11 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
             for (const g of groups) {
               if (g.projects) {
                 const proj = g.projects.find((p: any) => p.id === project.id);
-                if (proj) return proj;
+                if (proj) {return proj;}
               }
               if (g.subgroups) {
                 const found = findProjectPermission(g.subgroups);
-                if (found) return found;
+                if (found) {return found;}
               }
             }
             return null;
@@ -356,7 +362,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
     }
   };
 
-  const handleToggle = (event: React.SyntheticEvent | null, nodeIds: string[]) => {
+  const handleToggle = (_event: React.SyntheticEvent | null, nodeIds: string[]) => {
     setExpanded(nodeIds);
     
     // Load children for newly expanded nodes
@@ -370,7 +376,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
   const handleNodeClick = (event: React.MouseEvent, nodeId: string) => {
     event.stopPropagation();
     const node = nodes[nodeId];
-    if (!node) return;
+    if (!node) {return;}
 
     // Always select the node first
     onSelect(node);
@@ -393,7 +399,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
 
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>, nodeId: string) => {
     event.stopPropagation();
-    if (!onCheckedNodesChange) return;
+    if (!onCheckedNodesChange) {return;}
 
     const isChecked = event.target.checked;
     let newCheckedNodes: string[];
@@ -409,7 +415,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
     onCheckedNodesChange(newCheckedNodes, checkedNodeObjects);
   };
 
-  const handleSelect = (event: React.SyntheticEvent | null, nodeIds: string[] | string) => {
+  const handleSelect = (_event: React.SyntheticEvent | null, _nodeIds: string[] | string) => {
     // This is now handled by handleNodeClick
   };
 
@@ -475,7 +481,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
 
   const renderTree = (nodeId: string, depth: number = 0): JSX.Element => {
     const node = nodes[nodeId];
-    if (!node) return <></>;
+    if (!node) {return <></>;}
 
     // Filter based on access level if showOnlyDeveloperPlus is enabled
     if (showOnlyDeveloperPlus && node.userAccess && !isHighLevelAccess(node.userAccess.access_level_name)) {
@@ -621,7 +627,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
               {/* Visibility Badge */}
               {node.visibility && (
                 <Chip 
-                  icon={getVisibilityIcon(node.visibility)}
+                  icon={getVisibilityIcon(node.visibility) || undefined}
                   label={node.visibility} 
                   size="small" 
                   sx={{ 
@@ -691,7 +697,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           expandedItems={expanded}
           selectedItems={selectedNodeId || ''}
           onExpandedItemsChange={handleToggle}
-          onSelectedItemsChange={handleSelect}
+          onSelectedItemsChange={(event, itemIds) => handleSelect(event, itemIds || '')}
           sx={{ 
             flexGrow: 1, 
             maxWidth: '100%',

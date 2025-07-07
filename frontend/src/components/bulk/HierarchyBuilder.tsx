@@ -10,11 +10,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Collapse,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   Chip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -50,7 +45,7 @@ export const HierarchyBuilder: React.FC<HierarchyBuilderProps> = ({ parentId, on
   });
 
   // 노드 추가
-  const addNode = (parentNodes: HierarchyNode[] = nodes, parentId?: string) => {
+  const addNode = (_parentNodes: HierarchyNode[] = nodes, parentId?: string) => {
     const newNode: HierarchyNode = {
       id: Date.now().toString(),
       name: '',
@@ -122,8 +117,8 @@ export const HierarchyBuilder: React.FC<HierarchyBuilderProps> = ({ parentId, on
 
   // YAML 생성
   const generateYaml = () => {
-    const cleanNode = (node: HierarchyNode): any => {
-      const cleaned: any = {
+    const cleanNode = (node: HierarchyNode): Record<string, unknown> => {
+      const cleaned: Record<string, unknown> = {
         name: node.name,
         path: node.path,
         description: node.description || undefined,
@@ -277,7 +272,7 @@ export const HierarchyBuilder: React.FC<HierarchyBuilderProps> = ({ parentId, on
         <Box sx={{ mb: 3 }}>
           {nodes.length === 0 ? (
             <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-              상단의 "최상위 그룹 추가" 버튼을 클릭하여 시작하세요
+              상단의 &quot;최상위 그룹 추가&quot; 버튼을 클릭하여 시작하세요
             </Typography>
           ) : (
             nodes.map(node => renderNode(node))

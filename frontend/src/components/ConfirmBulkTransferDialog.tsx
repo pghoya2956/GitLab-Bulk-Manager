@@ -46,7 +46,7 @@ export const ConfirmBulkTransferDialog: React.FC<ConfirmBulkTransferDialogProps>
   targetNode,
   loading = false,
 }) => {
-  if (!targetNode || sourceNodes.length === 0) return null;
+  if (!targetNode || sourceNodes.length === 0) {return null;}
 
   const groupCount = sourceNodes.filter(n => n.type === 'group').length;
   const projectCount = sourceNodes.filter(n => n.type === 'project').length;
