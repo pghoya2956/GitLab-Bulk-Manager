@@ -22,6 +22,7 @@ import { ConfirmTransferDialog } from '../components/ConfirmTransferDialog';
 import { ConfirmBulkTransferDialog } from '../components/ConfirmBulkTransferDialog';
 import { BulkImportDialog } from '../components/bulk/BulkImportDialog';
 import { BulkSettingsDialog } from '../components/bulk/BulkSettingsDialog';
+import SvnMigrationDialog from '../components/svn/SvnMigrationDialog';
 import { useNotification } from '../hooks/useNotification';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -35,6 +36,8 @@ import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import UploadIcon from '@mui/icons-material/Upload';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 
 interface TreeNode {
   id: string;
@@ -59,6 +62,7 @@ export const GroupsProjects: React.FC = () => {
   const [showOnlyDeveloperPlus, setShowOnlyDeveloperPlus] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkSettingsOpen, setBulkSettingsOpen] = useState(false);
+  const [svnMigrationOpen, setSvnMigrationOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
   const [bulkMenuAnchor, setBulkMenuAnchor] = useState<null | HTMLElement>(null);
@@ -317,47 +321,130 @@ export const GroupsProjects: React.FC = () => {
   return (
     <Box sx={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Groups & Projects
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Click groups to expand/collapse • Drag items to reorganize • {showOnlyDeveloperPlus ? 'Showing Developer+ only' : 'Showing all access levels'}
-          </Typography>
+      <Box sx={{ mb: 3 }}>
+        {/* Title and Controls Row */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'flex-start', 
+          justifyContent: 'space-between',
+          mb: 2,
+          flexWrap: 'wrap',
+          gap: 2,
+        }}>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Groups & Projects
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Click groups to expand/collapse • Drag items to reorganize • {showOnlyDeveloperPlus ? 'Showing Developer+ only' : 'Showing all access levels'}
+            </Typography>
+          </Box>
+          
+          {/* Top Right Controls */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showOnlyDeveloperPlus}
+                  onChange={(e) => setShowOnlyDeveloperPlus(e.target.checked)}
+                  size="small"
+                />
+              }
+              label={showOnlyDeveloperPlus ? "Developer+ only" : "All access levels"}
+              sx={{ m: 0 }}
+            />
+            
+            <ToggleButton
+              value="multiselect"
+              selected={multiSelectMode}
+              onChange={toggleMultiSelectMode}
+              size="small"
+              title={multiSelectMode ? "Disable multi-select" : "Enable multi-select"}
+              sx={{
+                px: 1.5,
+                py: 0.5,
+                border: '1px solid',
+                borderColor: multiSelectMode ? 'primary.main' : 'divider',
+                backgroundColor: multiSelectMode ? 'primary.50' : 'transparent',
+              }}
+            >
+              {multiSelectMode ? <CheckBoxIcon fontSize="small" /> : <DragIndicatorIcon fontSize="small" />}
+            </ToggleButton>
+            
+            <IconButton onClick={handleRefresh} title="Refresh" size="small">
+              <RefreshIcon />
+            </IconButton>
+          </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          {/* Developer+ Filter Toggle */}
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showOnlyDeveloperPlus}
-                onChange={(e) => setShowOnlyDeveloperPlus(e.target.checked)}
-                size="small"
-              />
-            }
-            label={showOnlyDeveloperPlus ? "Developer+ only" : "All access levels"}
-            sx={{ mr: 2 }}
-          />
 
-          <Divider orientation="vertical" flexItem />
-
-          {/* Multi-select Toggle */}
-          <ToggleButton
-            value="multiselect"
-            selected={multiSelectMode}
-            onChange={toggleMultiSelectMode}
-            size="small"
-            title={multiSelectMode ? "Disable multi-select" : "Enable multi-select"}
+        {/* Action Buttons Row */}
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: 2,
+            backgroundColor: 'primary.50',
+            border: '1px solid',
+            borderColor: 'primary.100',
+            borderRadius: 2,
+            display: 'flex',
+            gap: 2,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <RocketLaunchIcon sx={{ color: 'primary.main', mr: 1 }} />
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main', mr: 2 }}>
+            Quick Actions
+          </Typography>
+          
+          <Divider orientation="vertical" flexItem sx={{ mr: 2 }} />
+          
+          {/* SVN Migration Button */}
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<CompareArrowsIcon />}
+            onClick={() => setSvnMigrationOpen(true)}
+            sx={{ 
+              minWidth: 150,
+              py: 1.5,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+              },
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 10px rgba(102, 126, 234, 0.3)',
+            }}
           >
-            {multiSelectMode ? <CheckBoxIcon /> : <DragIndicatorIcon />}
-          </ToggleButton>
+            SVN to Git
+          </Button>
           
           {/* Bulk Import Button */}
           <Button
-            variant="outlined"
+            variant="contained"
+            size="large"
             startIcon={<UploadIcon />}
             onClick={() => setBulkImportOpen(true)}
+            sx={{ 
+              minWidth: 150,
+              py: 1.5,
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              color: 'white',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 20px rgba(79, 172, 254, 0.4)',
+              },
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 10px rgba(79, 172, 254, 0.3)',
+            }}
           >
             Bulk Import
           </Button>
@@ -365,16 +452,28 @@ export const GroupsProjects: React.FC = () => {
           {/* Add Button with Menu */}
           <Button
             variant="contained"
+            size="large"
             startIcon={<AddIcon />}
             onClick={handleAddMenuOpen}
+            sx={{ 
+              minWidth: 130,
+              py: 1.5,
+              background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
+              color: 'rgba(0, 0, 0, 0.87)',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #8fd3f4 0%, #84fab0 100%)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 20px rgba(132, 250, 176, 0.4)',
+              },
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 10px rgba(132, 250, 176, 0.3)',
+            }}
           >
             Add New
           </Button>
-          
-          <IconButton onClick={handleRefresh} title="Refresh">
-            <RefreshIcon />
-          </IconButton>
-        </Box>
+        </Paper>
       </Box>
 
       {/* Main Content */}
@@ -625,6 +724,20 @@ export const GroupsProjects: React.FC = () => {
         onSuccess={() => {
           setBulkSettingsOpen(false);
           setCheckedNodes([]);
+          setRefreshTrigger(prev => prev + 1);
+        }}
+      />
+
+      <SvnMigrationDialog
+        open={svnMigrationOpen}
+        onClose={() => setSvnMigrationOpen(false)}
+        selectedGroup={selectedNode?.type === 'group' ? {
+          id: parseInt(selectedNode.id.replace('group-', '')),
+          name: selectedNode.name,
+          full_path: selectedNode.full_path,
+        } : undefined}
+        onSuccess={() => {
+          setSvnMigrationOpen(false);
           setRefreshTrigger(prev => prev + 1);
         }}
       />

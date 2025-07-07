@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "axios": "^1.6.2",
+    "bull": "^4.11.5",
     "connect-redis": "^7.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -42,6 +43,7 @@
     "js-yaml": "^4.1.0",
     "redis": "^4.6.10",
     "socket.io": "^4.5.4",
+    "uuid": "^9.0.1",
     "winston": "^3.11.0"
   },
   "devDependencies": {

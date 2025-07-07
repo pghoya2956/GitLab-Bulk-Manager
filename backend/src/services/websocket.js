@@ -2,6 +2,8 @@ import logger from '../utils/logger.js';
 
 const connectedClients = new Map();
 
+let websocketService = null;
+
 export const setupWebSocket = (io) => {
   io.on('connection', (socket) => {
     logger.info(`WebSocket client connected: ${socket.id}`);
@@ -82,7 +84,7 @@ export const setupWebSocket = (io) => {
   });
 
   // Export methods for emitting events
-  return {
+  websocketService = {
     emitJobUpdate: (jobId, data) => {
       io.to(`job:${jobId}`).emit('job:update', data);
     },
@@ -101,8 +103,34 @@ export const setupWebSocket = (io) => {
     emitProjectUpdate: (projectId, data) => {
       io.to(`project:${projectId}`).emit('project:updated', data);
     },
+    // SVN Migration events
+    emitMigrationStarted: (migrationId, data) => {
+      io.emit('migration:started', { id: migrationId, ...data });
+    },
+    emitMigrationProgress: (migrationId, progress) => {
+      io.emit('migration:progress', { id: migrationId, ...progress });
+    },
+    emitMigrationLog: (migrationId, log) => {
+      io.emit('migration:log', { id: migrationId, ...log });
+    },
+    emitMigrationCompleted: (migrationId, result) => {
+      io.emit('migration:completed', { id: migrationId, ...result });
+    },
+    emitMigrationFailed: (migrationId, error) => {
+      io.emit('migration:failed', { id: migrationId, ...error });
+    },
+    emitMigrationSyncing: (migrationId, data) => {
+      io.emit('migration:syncing', { id: migrationId, ...data });
+    },
+    emitMigrationSynced: (migrationId, result) => {
+      io.emit('migration:synced', { id: migrationId, ...result });
+    },
     broadcast: (event, data) => {
       io.emit(event, data);
     },
   };
+  
+  return websocketService;
 };
+
+export default websocketService;

@@ -49,6 +49,7 @@ tmp/
 temp/
 *.tmp
 *.temp
+requirements/
 
 # Cache directories
 .cache/

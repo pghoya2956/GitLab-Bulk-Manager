@@ -150,4 +150,74 @@ export const gitlabService = {
   }> {
     return gitLabClient.post('/bulk/parse-yaml', { content });
   },
+
+  // SVN Migration
+  async testSvnConnection(data: {
+    svnUrl: string;
+    svnUsername: string;
+    svnPassword: string;
+  }) {
+    const response = await axios.post('/api/svn/test-connection', data, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async extractSvnUsers(svnUrl: string) {
+    const response = await axios.get('/api/svn/extract-users', {
+      params: { svnUrl },
+      withCredentials: true
+    });
+    return response.data.data;
+  },
+
+  async previewSvnMigration(data: {
+    svnUrl: string;
+    layout: any;
+    authorsMapping: Record<string, string>;
+  }) {
+    const response = await axios.post('/api/svn/preview', data, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async startSvnMigration(data: {
+    svnUrl: string;
+    gitlabProjectId: number;
+    projectName: string;
+    projectPath: string;
+    layout: any;
+    authorsMapping: Record<string, string>;
+    options?: any;
+  }) {
+    const response = await axios.post('/api/svn/migrate', data, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async startBulkSvnMigration(migrations: any[]) {
+    const response = await axios.post('/api/svn/migrate/bulk', { migrations }, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async getSvnMigrations() {
+    const response = await axios.get('/api/svn/migrations', { withCredentials: true });
+    return response.data.data;
+  },
+
+  async getSvnMigrationById(id: string) {
+    const response = await axios.get(`/api/svn/migrations/${id}`, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async syncSvnMigration(id: string) {
+    const response = await axios.post(`/api/svn/migrations/${id}/sync`, {}, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async deleteSvnMigration(id: string) {
+    const response = await axios.delete(`/api/svn/migrations/${id}`, { withCredentials: true });
+    return response.data;
+  },
+
+  async parseSvnYaml(content: string) {
+    const response = await axios.post('/api/svn/parse-yaml', { content }, { withCredentials: true });
+    return response.data.data;
+  }
 };

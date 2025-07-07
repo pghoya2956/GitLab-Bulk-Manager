@@ -16,6 +16,7 @@ import bulkRoutes from './routes/bulk.js';
 import statsRoutes from './routes/stats.js';
 import permissionsRoutes from './routes/permissions.js';
 import docsRoutes from './routes/docs.js';
+import svnRoutes from './routes/svn.js';
 import { authenticateToken } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { setupWebSocket } from './services/websocket.js';
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/docs', docsRoutes); // Documentation doesn't require auth
 app.use('/api/stats', authenticateToken, statsRoutes);
 app.use('/api/permissions', authenticateToken, permissionsRoutes);
+app.use('/api/svn', authenticateToken, svnRoutes);
 app.use('/api/gitlab/bulk', authenticateToken, bulkRoutes);
 app.use('/api/gitlab', authenticateToken, gitlabRoutes);
 

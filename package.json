@@ -8,7 +8,6 @@
     "frontend"
   ],
   "scripts": {
-    "install": "npm install --workspaces",
     "start": "./manage.sh start",
     "stop": "./manage.sh stop",
     "restart": "./manage.sh restart",

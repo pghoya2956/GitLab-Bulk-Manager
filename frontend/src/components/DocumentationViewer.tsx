@@ -274,7 +274,8 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({ docPat
         remarkPlugins={[remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeHighlight]}
         components={{
-          code: ({ node, inline, className, children, ...props }) => {
+          code: ({ node, className, children, ...props }: any) => {
+            const inline = props.inline;
             const match = /language-(\w+)/.exec(className || '');
             const lang = match ? match[1] : '';
             
@@ -284,8 +285,8 @@ export const DocumentationViewer: React.FC<DocumentationViewerProps> = ({ docPat
             
             if (!inline && lang) {
               return (
-                <pre className={className} {...props}>
-                  <code>{children}</code>
+                <pre className={className}>
+                  <code {...props}>{children}</code>
                 </pre>
               );
             }
