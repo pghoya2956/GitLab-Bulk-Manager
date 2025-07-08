@@ -49,7 +49,7 @@ tmp/
 temp/
 *.tmp
 *.temp
-requirements/
+sample/
 
 # Cache directories
 .cache/
@@ -171,6 +171,10 @@ temp/
 *.sqlite
 *.sqlite3
 *.db
+data/
+
+# Claude
+requirements/
 
 # Backup files
 *.backup

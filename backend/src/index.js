@@ -20,6 +20,7 @@ import svnRoutes from './routes/svn.js';
 import { authenticateToken } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { setupWebSocket } from './services/websocket.js';
+import jobQueueService from './services/jobQueue.js';
 
 // Load environment variables
 dotenv.config();

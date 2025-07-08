@@ -11,6 +11,7 @@ import {
   Box,
   Alert,
   IconButton,
+  CircularProgress,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import SvnConnectionForm from './SvnConnectionForm';
@@ -25,7 +26,7 @@ interface SvnMigrationDialogProps {
   selectedProject?: any;
 }
 
-const steps = ['SVN 연결', '사용자 매핑', '미리보기', '마이그레이션'];
+const steps = ['SVN 연결', '사용자 매핑', '미리보기'];
 
 const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
   open,
@@ -38,6 +39,7 @@ const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
   const [authorsMapping, setAuthorsMapping] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<any>(null);
   const [migrationId, setMigrationId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const {
     extractUsers,
@@ -48,47 +50,62 @@ const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
   } = useSvnMigration();
 
   const handleNext = async () => {
-    if (activeStep === 0 && connectionData) {
-      // SVN 연결 후 사용자 추출
-      try {
-        const users = await extractUsers(connectionData.svnUrl);
-        // 기본 매핑 설정 (사용자명 그대로)
-        const defaultMapping: Record<string, string> = {};
-        users.forEach((user: string) => {
-          defaultMapping[user] = `${user} <${user}@example.com>`;
-        });
-        setAuthorsMapping(defaultMapping);
-        setActiveStep(1);
-      } catch (err) {
-        console.error('Failed to extract users:', err);
+    setIsProcessing(true);
+    try {
+      if (activeStep === 0 && connectionData) {
+        // SVN 연결 후 사용자 추출
+        try {
+          const users = await extractUsers(connectionData.svnUrl);
+          // 기본 매핑 설정 (사용자명 그대로)
+          const defaultMapping: Record<string, string> = {};
+          users.forEach((user: string) => {
+            defaultMapping[user] = `${user} <${user}@example.com>`;
+          });
+          setAuthorsMapping(defaultMapping);
+          setActiveStep(1);
+        } catch (err) {
+          console.error('Failed to extract users:', err);
+        }
+      } else if (activeStep === 1) {
+        // 사용자 매핑 후 미리보기
+        try {
+          const previewData = await previewMigration({
+            ...connectionData,
+            authorsMapping,
+          });
+          setPreview(previewData);
+          setActiveStep(2);
+        } catch (err) {
+          console.error('Failed to preview migration:', err);
+        }
+      } else if (activeStep === 2) {
+        // 미리보기 후 마이그레이션 시작
+        try {
+          console.log('Migration data before sending:', {
+            projectName: connectionData.projectName,
+            projectPath: connectionData.projectPath,
+            connectionData
+          });
+          
+          const result = await startMigration({
+            ...connectionData,
+            authorsMapping,
+            gitlabProjectId: connectionData.targetGroupId || selectedProject?.id || selectedGroup?.id,
+            projectName: connectionData.projectName,
+            projectPath: connectionData.projectPath,
+          });
+          setMigrationId(result.migrationId);
+          
+          // 백그라운드에서 실행되므로 바로 다이얼로그 닫기
+          alert(`마이그레이션이 백그라운드에서 시작되었습니다.\n작업 ID: ${result.migrationId}\n\n진행 상황은 마이그레이션 모니터에서 확인하세요.`);
+          onClose();
+          handleReset();
+        } catch (err) {
+          console.error('Failed to start migration:', err);
+        }
       }
-    } else if (activeStep === 1) {
-      // 사용자 매핑 후 미리보기
-      try {
-        const previewData = await previewMigration({
-          ...connectionData,
-          authorsMapping,
-        });
-        setPreview(previewData);
-        setActiveStep(2);
-      } catch (err) {
-        console.error('Failed to preview migration:', err);
-      }
-    } else if (activeStep === 2) {
-      // 미리보기 후 마이그레이션 시작
-      try {
-        const result = await startMigration({
-          ...connectionData,
-          authorsMapping,
-          gitlabProjectId: selectedProject?.id || selectedGroup?.id,
-          projectName: connectionData.projectName,
-          projectPath: connectionData.projectPath,
-        });
-        setMigrationId(result.migrationId);
-        setActiveStep(3);
-      } catch (err) {
-        console.error('Failed to start migration:', err);
-      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -105,16 +122,8 @@ const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
   };
 
   const handleClose = () => {
-    if (activeStep === 3 && migrationId) {
-      // 마이그레이션 진행 중에는 확인 필요
-      if (window.confirm('마이그레이션이 진행 중입니다. 정말 닫으시겠습니까?')) {
-        onClose();
-        handleReset();
-      }
-    } else {
-      onClose();
-      handleReset();
-    }
+    onClose();
+    handleReset();
   };
 
   const getStepContent = () => {
@@ -124,7 +133,7 @@ const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
           <SvnConnectionForm
             onSuccess={(data) => {
               setConnectionData(data);
-              handleNext();
+              // Don't automatically call handleNext here
             }}
             selectedGroup={selectedGroup}
             selectedProject={selectedProject}
@@ -143,16 +152,6 @@ const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
             preview={preview}
             connectionData={connectionData}
             authorsMapping={authorsMapping}
-          />
-        );
-      case 3:
-        return (
-          <MigrationProgress
-            migrationId={migrationId!}
-            onComplete={() => {
-              onClose();
-              handleReset();
-            }}
           />
         );
       default:
@@ -192,22 +191,32 @@ const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
         {getStepContent()}
       </DialogContent>
       <DialogActions>
-        {activeStep > 0 && activeStep < 3 && (
-          <Button onClick={handleBack} disabled={isLoading}>
+        {activeStep > 0 && (
+          <Button onClick={handleBack} disabled={isLoading || isProcessing}>
             이전
           </Button>
         )}
-        {activeStep < 2 && (
+        {activeStep === 0 && (
+          <Button
+            variant="contained"
+            onClick={handleNext}
+            disabled={isLoading || isProcessing || !connectionData}
+            startIcon={isProcessing ? <CircularProgress size={20} /> : null}
+          >
+            {isProcessing ? '처리 중...' : '다음'}
+          </Button>
+        )}
+        {activeStep === 1 && (
           <Button
             variant="contained"
             onClick={handleNext}
             disabled={
-              isLoading ||
-              (activeStep === 0 && !connectionData) ||
-              (activeStep === 1 && Object.keys(authorsMapping).length === 0)
+              isLoading || isProcessing ||
+              Object.keys(authorsMapping).length === 0
             }
+            startIcon={isProcessing ? <CircularProgress size={20} /> : null}
           >
-            다음
+            {isProcessing ? '처리 중...' : '다음'}
           </Button>
         )}
         {activeStep === 2 && (
@@ -215,14 +224,10 @@ const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
             variant="contained"
             color="primary"
             onClick={handleNext}
-            disabled={isLoading || !preview}
+            disabled={isLoading || isProcessing || !preview}
+            startIcon={isProcessing ? <CircularProgress size={20} /> : null}
           >
-            마이그레이션 시작
-          </Button>
-        )}
-        {activeStep === 3 && (
-          <Button onClick={handleClose} variant="contained">
-            닫기
+            {isProcessing ? '시작 중...' : '마이그레이션 시작'}
           </Button>
         )}
       </DialogActions>

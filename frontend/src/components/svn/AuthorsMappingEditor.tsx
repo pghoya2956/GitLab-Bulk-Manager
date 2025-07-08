@@ -172,7 +172,17 @@ const AuthorsMappingEditor: React.FC<AuthorsMappingEditorProps> = ({
       </Box>
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        Git 사용자는 "이름 &lt;이메일&gt;" 형식으로 입력해주세요. 예: John Doe &lt;john.doe@example.com&gt;
+        <Typography variant="body2">
+          Git 사용자는 "이름 &lt;이메일&gt;" 형식으로 입력해주세요.
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 1 }}>
+          <strong>예시:</strong>
+        </Typography>
+        <Typography variant="body2" component="div" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
+          • John Doe &lt;john.doe@example.com&gt;<br />
+          • 홍길동 &lt;gildong.hong@company.kr&gt;<br />
+          • svnuser1 &lt;svnuser1@gitlab.local&gt;
+        </Typography>
       </Alert>
 
       <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
@@ -224,6 +234,7 @@ const AuthorsMappingEditor: React.FC<AuthorsMappingEditorProps> = ({
                       size="small"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="이름 <이메일@도메인.com>"
                       error={!validateEmail(editValue)}
                       helperText={!validateEmail(editValue) ? '올바른 형식이 아닙니다' : ''}
                     />

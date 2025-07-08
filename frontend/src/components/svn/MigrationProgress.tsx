@@ -43,7 +43,10 @@ const MigrationProgress: React.FC<MigrationProgressProps> = ({
   const [progress, setProgress] = useState({
     currentRevision: 0,
     totalCommits: 0,
+    totalRevisions: 0,
+    percentage: 0,
     message: '마이그레이션 준비 중...',
+    isEstimated: false,
   });
   const [logs, setLogs] = useState<MigrationLog[]>([]);
   const [showLogs, setShowLogs] = useState(false);
@@ -60,7 +63,10 @@ const MigrationProgress: React.FC<MigrationProgressProps> = ({
         setProgress({
           currentRevision: data.currentRevision || 0,
           totalCommits: data.totalCommits || 0,
+          totalRevisions: data.totalRevisions || 0,
+          percentage: data.percentage || 0,
           message: data.message || '',
+          isEstimated: data.isEstimated || false,
         });
       }
     };
@@ -155,8 +161,19 @@ const MigrationProgress: React.FC<MigrationProgressProps> = ({
 
 
   const getProgressValue = () => {
+    // 백분율이 제공되면 사용 (100% 상한선 적용)
+    if (progress.percentage > 0) {
+      return Math.min(100, progress.percentage);
+    }
+    
+    // 전체 리비전 수가 있으면 계산 (100% 상한선 적용)
+    if (progress.totalRevisions > 0 && progress.currentRevision > 0) {
+      return Math.min(100, Math.round((progress.currentRevision / progress.totalRevisions) * 100));
+    }
+    
+    // 그렇지 않으면 커밋 수로 추정
     if (progress.totalCommits === 0) return 0;
-    return Math.min(100, (progress.totalCommits / progress.currentRevision) * 100);
+    return Math.min(95, Math.floor(progress.totalCommits / 10));
   };
 
   return (
@@ -185,17 +202,36 @@ const MigrationProgress: React.FC<MigrationProgressProps> = ({
 
           {status === 'running' && (
             <>
-              <LinearProgress
-                variant="determinate"
-                value={getProgressValue()}
-                sx={{ mb: 1 }}
-              />
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">
+                    {progress.totalCommits > 0 
+                      ? `${progress.totalCommits}개 커밋 처리됨`
+                      : '진행 중...'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {progress.percentage > 0 ? `${progress.percentage}%` : `리비전 ${progress.currentRevision}`}
+                  </Typography>
+                </Box>
+                <LinearProgress
+                  variant={progress.totalCommits > 0 ? "determinate" : "indeterminate"}
+                  value={getProgressValue()}
+                  sx={{ 
+                    height: 8,
+                    borderRadius: 4,
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 4,
+                    }
+                  }}
+                />
+              </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="caption">
-                  리비전: {progress.currentRevision}
+                <Typography variant="caption" color="text.secondary">
+                  리비전: {progress.currentRevision || '-'} / {progress.totalRevisions || '?'}
+                  {progress.isEstimated && progress.totalRevisions > 0 && ' (추정치)'}
                 </Typography>
-                <Typography variant="caption">
-                  커밋 수: {progress.totalCommits}
+                <Typography variant="caption" color="text.secondary">
+                  처리된 커밋: {progress.totalCommits}개
                 </Typography>
               </Box>
             </>
@@ -239,7 +275,7 @@ const MigrationProgress: React.FC<MigrationProgressProps> = ({
                   </span>
                   {' '}
                   <span style={{ color: '#90caf9' }}>
-                    {log.timestamp.toLocaleTimeString()}
+                    {log.timestamp.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' })}
                   </span>
                   {' '}
                   {log.message}
@@ -256,13 +292,23 @@ const MigrationProgress: React.FC<MigrationProgressProps> = ({
 
       {status === 'failed' && (
         <Alert severity="error" sx={{ mt: 2 }}>
-          마이그레이션이 실패했습니다. 로그를 확인하고 다시 시도해주세요.
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            마이그레이션이 실패했습니다
+          </Typography>
+          <Typography variant="caption">
+            로그를 확인하고 다시 시도해주세요. 문제가 지속되면 관리자에게 문의하세요.
+          </Typography>
         </Alert>
       )}
 
       {status === 'completed' && (
         <Alert severity="success" sx={{ mt: 2 }}>
-          마이그레이션이 성공적으로 완료되었습니다!
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            마이그레이션이 성공적으로 완료되었습니다!
+          </Typography>
+          <Typography variant="caption">
+            GitLab 프로젝트로 이동하여 코드를 확인하세요.
+          </Typography>
         </Alert>
       )}
     </Box>

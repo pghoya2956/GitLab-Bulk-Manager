@@ -76,6 +76,10 @@ export const useSvnMigration = () => {
     setIsLoading(true);
     setError(null);
     try {
+      console.log('startMigration hook received:', {
+        projectName: data.projectName,
+        projectPath: data.projectPath
+      });
       const result = await gitlabService.startSvnMigration(data);
       showSuccess('마이그레이션이 시작되었습니다', 'success');
       return result;

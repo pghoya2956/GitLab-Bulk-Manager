@@ -29,7 +29,11 @@ class JobQueueService {
       console.log(`Processing migration job ${job.id} for ${job.data.svnUrl}`);
       
       try {
-        await svnMigrationService.executeMigration(job.data);
+        if (job.data.type === 'resume') {
+          await svnMigrationService.resumeMigration(job.data);
+        } else {
+          await svnMigrationService.executeMigration(job.data);
+        }
         return { success: true, migrationId: job.data.migrationId };
       } catch (error) {
         console.error(`Migration job ${job.id} failed:`, error);
@@ -109,6 +113,8 @@ class JobQueueService {
 
   // 작업 취소
   async cancelMigrationJobs(migrationId) {
+    let cancelledCount = 0;
+    
     // 대기 중인 작업 찾기
     const waitingJobs = await migrationQueue.getWaiting();
     const activeJobs = await migrationQueue.getActive();
@@ -120,6 +126,7 @@ class JobQueueService {
     for (const job of jobsToCancel) {
       try {
         await job.remove();
+        cancelledCount++;
         console.log(`Cancelled job ${job.id} for migration ${migrationId}`);
       } catch (error) {
         console.error(`Failed to cancel job ${job.id}:`, error);
@@ -137,11 +144,14 @@ class JobQueueService {
     for (const job of syncJobsToCancel) {
       try {
         await job.remove();
+        cancelledCount++;
         console.log(`Cancelled sync job ${job.id} for migration ${migrationId}`);
       } catch (error) {
         console.error(`Failed to cancel sync job ${job.id}:`, error);
       }
     }
+    
+    return { cancelledCount };
   }
 
   // 큐 상태 조회
@@ -166,19 +176,26 @@ class JobQueueService {
       syncQueue.getFailedCount()
     ]);
 
+    // 실제 마이그레이션 테이블의 상태도 확인
+    const migrationStatuses = await svnMigrationService.getMigrationStatusCounts();
+
     return {
       migration: {
         waiting: migrationWaiting,
         active: migrationActive,
         completed: migrationCompleted,
-        failed: migrationFailed
+        failed: migrationFailed,
+        // 실제 테이블의 실패 수와 동기화
+        actualFailed: migrationStatuses.failed || 0
       },
       sync: {
         waiting: syncWaiting,
         active: syncActive,
         completed: syncCompleted,
         failed: syncFailed
-      }
+      },
+      // 마이그레이션 테이블 상태 요약
+      migrationTable: migrationStatuses
     };
   }
 
@@ -206,6 +223,49 @@ class JobQueueService {
     await migrationQueue.clean(grace, 'failed');
     await syncQueue.clean(grace, 'completed');
     await syncQueue.clean(grace, 'failed');
+  }
+
+  // 실패한 작업 즉시 정리
+  async cleanFailedJobs() {
+    const migrationFailed = await migrationQueue.getFailedCount();
+    const syncFailed = await syncQueue.getFailedCount();
+    
+    // 실패한 작업들의 ID 수집
+    const failedMigrationJobs = await migrationQueue.getFailed();
+    const failedSyncJobs = await syncQueue.getFailed();
+    const failedJobIds = [
+      ...failedMigrationJobs.map(job => job.id),
+      ...failedSyncJobs.map(job => job.id)
+    ];
+    
+    // 실패한 작업들 즉시 정리 (grace period 0)
+    await migrationQueue.clean(0, 'failed');
+    await syncQueue.clean(0, 'failed');
+    
+    // stalled 작업들도 정리
+    const stalledMigration = await migrationQueue.getStalledCount();
+    const stalledSync = await syncQueue.getStalledCount();
+    
+    await migrationQueue.clean(0, 'stalled');
+    await syncQueue.clean(0, 'stalled');
+    
+    // 데이터베이스 상태 동기화
+    if (failedJobIds.length > 0) {
+      await svnMigrationService.syncFailedJobStatuses(failedJobIds);
+    }
+    
+    return {
+      cleaned: {
+        migration: {
+          failed: migrationFailed,
+          stalled: stalledMigration
+        },
+        sync: {
+          failed: syncFailed,
+          stalled: stalledSync
+        }
+      }
+    };
   }
 
   // 큐 종료 (graceful shutdown)
@@ -252,6 +312,8 @@ class InMemoryJobQueue {
     try {
       if (job.data.type === 'sync') {
         await svnMigrationService.executeSync(job.data);
+      } else if (job.data.type === 'resume') {
+        await svnMigrationService.resumeMigration(job.data);
       } else {
         await svnMigrationService.executeMigration(job.data);
       }
@@ -320,6 +382,34 @@ class InMemoryJobQueue {
         this.jobs.delete(jobId);
       }
     }
+  }
+
+  async cleanFailedJobs() {
+    let failedCount = 0;
+    let stalledCount = 0;
+    
+    for (const [jobId, job] of this.jobs.entries()) {
+      if (job.status === 'failed') {
+        this.jobs.delete(jobId);
+        failedCount++;
+      } else if (job.status === 'stalled') {
+        this.jobs.delete(jobId);
+        stalledCount++;
+      }
+    }
+    
+    return {
+      cleaned: {
+        migration: {
+          failed: failedCount,
+          stalled: stalledCount
+        },
+        sync: {
+          failed: 0,
+          stalled: 0
+        }
+      }
+    };
   }
 
   async close() {

@@ -187,6 +187,11 @@ export const gitlabService = {
     authorsMapping: Record<string, string>;
     options?: any;
   }) {
+    console.log('gitlabService.startSvnMigration sending:', {
+      projectName: data.projectName,
+      projectPath: data.projectPath,
+      fullData: data
+    });
     const response = await axios.post('/api/svn/migrate', data, { withCredentials: true });
     return response.data.data;
   },
@@ -219,5 +224,53 @@ export const gitlabService = {
   async parseSvnYaml(content: string) {
     const response = await axios.post('/api/svn/parse-yaml', { content }, { withCredentials: true });
     return response.data.data;
+  },
+
+  // Job Queue
+  async getJobQueueStatus() {
+    const response = await axios.get('/api/svn/queue/status', { withCredentials: true });
+    return response.data.data;
+  },
+
+  async cleanFailedJobs() {
+    const response = await axios.post('/api/svn/queue/clean-failed', {}, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async retryJob(jobId: string, queueType: 'migration' | 'sync' = 'migration') {
+    const response = await axios.post(`/api/svn/queue/retry/${jobId}`, { queueType }, { withCredentials: true });
+    return response.data.data;
+  },
+
+  // Alias methods for MigrationMonitor
+  async getMigrations() {
+    return this.getSvnMigrations();
+  },
+
+  async deleteMigration(id: string) {
+    return this.deleteSvnMigration(id);
+  },
+
+  async syncMigration(id: string) {
+    return this.syncSvnMigration(id);
+  },
+
+  async cleanMigrations(options: { migrationIds?: string[], includeCompleted?: boolean, includeFailed?: boolean }) {
+    const response = await axios.post('/api/svn/migrations/clean', options, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async stopMigration(id: string) {
+    const response = await axios.post(`/api/svn/migrations/${id}/stop`, {}, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async resumeMigration(id: string, data: { resumeFrom: 'lastRevision' | 'beginning', svnUsername?: string, svnPassword?: string }) {
+    const response = await axios.post(`/api/svn/migrations/${id}/resume`, data, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async getMigrationById(id: string) {
+    return this.getSvnMigrationById(id);
   }
 };

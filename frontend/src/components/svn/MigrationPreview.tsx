@@ -36,6 +36,12 @@ const MigrationPreview: React.FC<MigrationPreviewProps> = ({
   preview,
   connectionData,
 }) => {
+  console.log('MigrationPreview received connectionData:', {
+    projectName: connectionData?.projectName,
+    projectPath: connectionData?.projectPath,
+    fullData: connectionData
+  });
+  
   if (!preview) {
     return (
       <Alert severity="warning">
@@ -127,12 +133,15 @@ const MigrationPreview: React.FC<MigrationPreviewProps> = ({
             {branches && branches.length > 0 ? (
               <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
                 <List dense>
-                  {branches.map((branch: string) => (
-                    <ListItem key={branch}>
+                  {branches.map((branch: any) => (
+                    <ListItem key={typeof branch === 'string' ? branch : branch.name}>
                       <ListItemIcon>
                         <Folder fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText primary={branch} />
+                      <ListItemText 
+                        primary={typeof branch === 'string' ? branch : branch.name}
+                        secondary={typeof branch === 'object' && branch.lastCommit ? `리비전: ${branch.lastCommit}` : undefined}
+                      />
                     </ListItem>
                   ))}
                 </List>
@@ -155,12 +164,15 @@ const MigrationPreview: React.FC<MigrationPreviewProps> = ({
             {tags && tags.length > 0 ? (
               <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
                 <List dense>
-                  {tags.map((tag: string) => (
-                    <ListItem key={tag}>
+                  {tags.map((tag: any) => (
+                    <ListItem key={typeof tag === 'string' ? tag : tag.name}>
                       <ListItemIcon>
                         <Label fontSize="small" />
                       </ListItemIcon>
-                      <ListItemText primary={tag} />
+                      <ListItemText 
+                        primary={typeof tag === 'string' ? tag : tag.name}
+                        secondary={typeof tag === 'object' && tag.revision ? `리비전: ${tag.revision}` : undefined}
+                      />
                     </ListItem>
                   ))}
                 </List>

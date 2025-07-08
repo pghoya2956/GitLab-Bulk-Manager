@@ -86,7 +86,11 @@
       "Bash(./node_modules/.bin/tsc:*)",
       "Bash(./node_modules/.bin/eslint src --ext .js)",
       "Bash(sed:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(svn info:*)",
+      "Bash(echo $TMPDIR)",
+      "Bash(sqlite3:*)",
+      "mcp__zen__debug"
     ],
     "deny": []
   }

@@ -23,6 +23,7 @@ import { ConfirmBulkTransferDialog } from '../components/ConfirmBulkTransferDial
 import { BulkImportDialog } from '../components/bulk/BulkImportDialog';
 import { BulkSettingsDialog } from '../components/bulk/BulkSettingsDialog';
 import SvnMigrationDialog from '../components/svn/SvnMigrationDialog';
+import BulkSvnMigrationDialog from '../components/svn/BulkSvnMigrationDialog';
 import { useNotification } from '../hooks/useNotification';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -59,10 +60,11 @@ export const GroupsProjects: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
-  const [showOnlyDeveloperPlus, setShowOnlyDeveloperPlus] = useState(false);
+  const [showOnlyDeveloperPlus, setShowOnlyDeveloperPlus] = useState(true);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkSettingsOpen, setBulkSettingsOpen] = useState(false);
   const [svnMigrationOpen, setSvnMigrationOpen] = useState(false);
+  const [bulkSvnMigrationOpen, setBulkSvnMigrationOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
   const [bulkMenuAnchor, setBulkMenuAnchor] = useState<null | HTMLElement>(null);
@@ -601,6 +603,13 @@ export const GroupsProjects: React.FC = () => {
             </Typography>
           )}
         </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => {
+          setBulkSvnMigrationOpen(true);
+          handleAddMenuClose();
+        }}>
+          Bulk SVN Migration
+        </MenuItem>
       </Menu>
 
       {/* Context Menu */}
@@ -740,6 +749,16 @@ export const GroupsProjects: React.FC = () => {
           setSvnMigrationOpen(false);
           setRefreshTrigger(prev => prev + 1);
         }}
+      />
+
+      <BulkSvnMigrationDialog
+        open={bulkSvnMigrationOpen}
+        onClose={() => setBulkSvnMigrationOpen(false)}
+        selectedGroup={selectedNode?.type === 'group' ? {
+          id: parseInt(selectedNode.id.replace('group-', '')),
+          name: selectedNode.name,
+          full_path: selectedNode.full_path,
+        } : undefined}
       />
     </Box>
   );
