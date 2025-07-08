@@ -93,11 +93,12 @@ const SvnMigrationDialog: React.FC<SvnMigrationDialogProps> = ({
             gitlabProjectId: connectionData.targetGroupId || selectedProject?.id || selectedGroup?.id,
             projectName: connectionData.projectName,
             projectPath: connectionData.projectPath,
+            autoStart: false,  // 등록만 하고 시작하지 않음
           });
           setMigrationId(result.migrationId);
           
-          // 백그라운드에서 실행되므로 바로 다이얼로그 닫기
-          alert(`마이그레이션이 백그라운드에서 시작되었습니다.\n작업 ID: ${result.migrationId}\n\n진행 상황은 마이그레이션 모니터에서 확인하세요.`);
+          // 등록 완료 메시지
+          alert(`마이그레이션이 등록되었습니다.\n작업 ID: ${result.migrationId}\n\n마이그레이션 모니터에서 실행할 수 있습니다.`);
           onClose();
           handleReset();
         } catch (err) {

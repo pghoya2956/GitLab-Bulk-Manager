@@ -249,10 +249,17 @@ class JobQueueService {
     await migrationQueue.clean(0, 'stalled');
     await syncQueue.clean(0, 'stalled');
     
-    // 데이터베이스 상태 동기화
-    if (failedJobIds.length > 0) {
-      await svnMigrationService.syncFailedJobStatuses(failedJobIds);
-    }
+    // 데이터베이스의 실패 상태 마이그레이션도 정리
+    // 큐에 대응하는 작업이 없는 실패 상태들을 찾아서 정리
+    const activeMigrationJobs = await migrationQueue.getJobs(['active', 'waiting', 'completed', 'failed']);
+    const activeSyncJobs = await syncQueue.getJobs(['active', 'waiting', 'completed', 'failed']);
+    const activeJobMigrationIds = new Set([
+      ...activeMigrationJobs.map(job => job.data?.migrationId).filter(Boolean),
+      ...activeSyncJobs.map(job => job.data?.migrationId).filter(Boolean)
+    ]);
+    
+    // 데이터베이스에서 실패 상태이지만 큐에 없는 항목들을 찾아 정리
+    await svnMigrationService.cleanOrphanedFailedMigrations(activeJobMigrationIds);
     
     return {
       cleaned: {
@@ -267,6 +274,34 @@ class JobQueueService {
       }
     };
   }
+
+  // 동시 실행 수 업데이트
+  async updateConcurrency(limit) {
+    // Bull 큐의 동시 실행 수를 동적으로 변경
+    // 새로운 프로세서로 재등록
+    migrationQueue.concurrency = limit;
+    
+    // 기존 프로세서 제거하고 새로운 동시 실행 수로 재등록
+    await migrationQueue.removeAllListeners('process');
+    
+    migrationQueue.process(limit, async (job) => {
+      console.log(`Processing migration job ${job.id} for ${job.data.svnUrl}`);
+      
+      try {
+        if (job.data.type === 'resume') {
+          await svnMigrationService.resumeMigration(job.data);
+        } else {
+          await svnMigrationService.executeMigration(job.data);
+        }
+        return { success: true, migrationId: job.data.migrationId };
+      } catch (error) {
+        console.error(`Migration job ${job.id} failed:`, error);
+        throw error;
+      }
+    });
+    
+    console.log(`Migration queue concurrency updated to ${limit}`);
+  },
 
   // 큐 종료 (graceful shutdown)
   async close() {

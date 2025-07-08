@@ -1217,6 +1217,27 @@ class SvnMigrationService {
 
     return counts;
   }
+
+  // 큐에 없는 실패한 마이그레이션을 정리
+  async cleanOrphanedFailedMigrations(activeJobMigrationIds) {
+    try {
+      const migrations = await migrationRepository.findAll();
+      const failedMigrations = migrations.filter(m => 
+        m.status === 'failed' && !activeJobMigrationIds.has(m.id)
+      );
+
+      for (const migration of failedMigrations) {
+        // 큐에 없는 실패한 마이그레이션은 완전히 삭제하거나 상태를 정리
+        await migrationRepository.delete(migration.id);
+        console.log(`Cleaned orphaned failed migration: ${migration.id}`);
+      }
+
+      return failedMigrations.length;
+    } catch (error) {
+      console.error('Failed to clean orphaned migrations:', error);
+      return 0;
+    }
+  }
 }
 
 export default new SvnMigrationService();

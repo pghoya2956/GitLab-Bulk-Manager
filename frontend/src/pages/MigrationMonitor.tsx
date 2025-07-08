@@ -22,6 +22,7 @@ import {
   Checkbox,
   FormControlLabel,
   FormGroup,
+  Slider,
 } from '@mui/material';
 import {
   Refresh,
@@ -79,6 +80,7 @@ const MigrationMonitor: React.FC = () => {
   });
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedMigrationForResume, setSelectedMigrationForResume] = useState<Migration | null>(null);
+  const [concurrentLimit, setConcurrentLimit] = useState(2);
 
   const loadMigrations = async () => {
     setLoading(true);
@@ -115,11 +117,35 @@ const MigrationMonitor: React.FC = () => {
       }
     }, 1000);
     
+    // 동시 실행 수 로드
+    loadConcurrentLimit();
+    
     return () => clearInterval(interval);
   }, []);
 
+  const loadConcurrentLimit = async () => {
+    try {
+      const { limit } = await gitlabService.getConcurrentLimit();
+      setConcurrentLimit(limit);
+    } catch (error) {
+      console.error('Failed to load concurrent limit:', error);
+    }
+  };
+
+  const handleConcurrentLimitChange = async (_: any, value: number | number[]) => {
+    const newLimit = Array.isArray(value) ? value[0] : value;
+    setConcurrentLimit(newLimit);
+    try {
+      await gitlabService.setConcurrentLimit(newLimit);
+    } catch (error) {
+      console.error('Failed to set concurrent limit:', error);
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case 'registered':
+        return <Schedule color="disabled" />;
       case 'pending':
         return <Schedule color="action" />;
       case 'running':
@@ -139,8 +165,10 @@ const MigrationMonitor: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
+      case 'registered':
         return 'default';
+      case 'pending':
+        return 'warning';
       case 'running':
         return 'primary';
       case 'syncing':
@@ -221,6 +249,35 @@ const MigrationMonitor: React.FC = () => {
   const handleResume = (migration: Migration) => {
     setSelectedMigrationForResume(migration);
     setResumeDialogOpen(true);
+  };
+
+  const handleStart = async (migrationId: string) => {
+    try {
+      await gitlabService.startMigrations([migrationId]);
+      await loadMigrations();
+    } catch (error) {
+      console.error('Failed to start migration:', error);
+    }
+  };
+
+  const handleBulkStart = async () => {
+    const registeredMigrations = Array.from(selectedMigrations).filter(id => {
+      const migration = migrations.find(m => m.id === id);
+      return migration?.status === 'registered';
+    });
+
+    if (registeredMigrations.length === 0) {
+      alert('실행할 등록된 마이그레이션을 선택하세요.');
+      return;
+    }
+
+    try {
+      await gitlabService.startMigrations(registeredMigrations);
+      setSelectedMigrations(new Set());
+      await loadMigrations();
+    } catch (error) {
+      console.error('Failed to start migrations:', error);
+    }
   };
 
   const handleResumeComplete = () => {
@@ -313,6 +370,17 @@ const MigrationMonitor: React.FC = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">SVN 마이그레이션 모니터</Typography>
         <Box>
+          {selectedMigrations.size > 0 && migrations.some(m => selectedMigrations.has(m.id) && m.status === 'registered') && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<PlayArrow />}
+              onClick={handleBulkStart}
+              sx={{ mr: 2 }}
+            >
+              선택 항목 시작 ({Array.from(selectedMigrations).filter(id => migrations.find(m => m.id === id)?.status === 'registered').length})
+            </Button>
+          )}
           {(selectedMigrations.size > 0 || migrations.some(m => m.status === 'completed' || m.status === 'failed')) && (
             <Button
               variant="outlined"
@@ -368,7 +436,13 @@ const MigrationMonitor: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-          {queueStatus && ((queueStatus.migration.failed || 0) + (queueStatus.sync.failed || 0)) > 0 && (
+          {queueStatus && (() => {
+            const migrationFailed = queueStatus?.migrationTable?.failed || 
+                                   queueStatus?.migration.actualFailed || 
+                                   queueStatus?.migration.failed || 0;
+            const syncFailed = queueStatus?.sync.failed || 0;
+            return (migrationFailed + syncFailed) > 0;
+          })() && (
             <Tooltip title="실패한 작업을 정리합니다">
               <IconButton
                 onClick={handleCleanFailedJobs}
@@ -407,7 +481,14 @@ const MigrationMonitor: React.FC = () => {
           </Box>
           <Box sx={{ textAlign: 'center' }}>
             <Typography variant="h3" sx={{ fontWeight: 700, color: 'error.main' }}>
-              {(queueStatus?.migration.failed || 0) + (queueStatus?.sync.failed || 0)}
+              {(() => {
+                // 실제 데이터베이스 상태를 우선 사용, 없으면 큐 상태 사용
+                const migrationFailed = queueStatus?.migrationTable?.failed || 
+                                       queueStatus?.migration.actualFailed || 
+                                       queueStatus?.migration.failed || 0;
+                const syncFailed = queueStatus?.sync.failed || 0;
+                return migrationFailed + syncFailed;
+              })()}
             </Typography>
             <Typography variant="body2" color="text.secondary">실패</Typography>
           </Box>
@@ -440,6 +521,22 @@ const MigrationMonitor: React.FC = () => {
           />
         </Box>
 
+        {/* 동시 실행 수 설정 */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            동시 실행 수: {concurrentLimit}
+          </Typography>
+          <Slider
+            value={concurrentLimit}
+            onChange={handleConcurrentLimitChange}
+            min={1}
+            max={10}
+            marks
+            valueLabelDisplay="auto"
+            sx={{ maxWidth: 300 }}
+          />
+        </Box>
+
         {/* 작업 타입별 세부 정보 */}
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
           <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
@@ -453,9 +550,14 @@ const MigrationMonitor: React.FC = () => {
               <Chip size="small" label={`진행: ${queueStatus?.migration.active || 0}`} />
               <Chip size="small" label={`대기: ${queueStatus?.migration.waiting || 0}`} />
               <Chip size="small" label={`완료: ${queueStatus?.migration.completed || 0}`} color="success" />
-              {(queueStatus?.migration.failed || 0) > 0 && (
-                <Chip size="small" label={`실패: ${queueStatus.migration.failed}`} color="error" />
-              )}
+              {(() => {
+                const failed = queueStatus?.migrationTable?.failed || 
+                              queueStatus?.migration.actualFailed || 
+                              queueStatus?.migration.failed || 0;
+                return failed > 0 && (
+                  <Chip size="small" label={`실패: ${failed}`} color="error" />
+                );
+              })()}
             </Box>
           </Box>
 
@@ -579,6 +681,13 @@ const MigrationMonitor: React.FC = () => {
                         <Info />
                       </IconButton>
                     </Tooltip>
+                    {migration.status === 'registered' && (
+                      <Tooltip title="시작">
+                        <IconButton size="small" onClick={() => handleStart(migration.id)} color="primary">
+                          <PlayArrow />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     {migration.status === 'running' && (
                       <Tooltip title="중지">
                         <IconButton size="small" onClick={() => handleStop(migration.id)} color="error">

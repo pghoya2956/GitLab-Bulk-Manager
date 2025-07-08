@@ -78,7 +78,8 @@ router.post('/migrate', authenticateToken, async (req, res) => {
       projectPath,
       layout,
       authorsMapping,
-      options = {}
+      options = {},
+      autoStart = false  // 기본값: false로 변경 (등록만 하고 시작하지 않음)
     } = req.body;
     
     const credentials = req.session.svnCredentials?.[svnUrl];
@@ -102,27 +103,66 @@ router.post('/migrate', authenticateToken, async (req, res) => {
       gitlabToken: req.session.gitlabToken
     };
     
-    // 작업 큐에 추가
-    const job = await jobQueueService.addMigrationJob(jobData);
-    
-    // jobId를 jobData에 추가 (metadata에 저장용)
-    jobData.jobId = job.id;
-    
-    // WebSocket으로 시작 알림
-    websocketService.emitMigrationStarted(migrationId, {
-      svnUrl,
-      projectName,
-      jobId: job.id
-    });
-    
-    res.json({ 
-      success: true, 
-      data: { 
-        migrationId, 
-        jobId: job.id,
-        status: 'queued' 
-      } 
-    });
+    if (autoStart) {
+      // autoStart가 true일 때만 작업 큐에 추가
+      const job = await jobQueueService.addMigrationJob(jobData);
+      
+      // jobId를 jobData에 추가 (metadata에 저장용)
+      jobData.jobId = job.id;
+      
+      // WebSocket으로 시작 알림
+      websocketService.emitMigrationStarted(migrationId, {
+        svnUrl,
+        projectName,
+        jobId: job.id
+      });
+      
+      res.json({ 
+        success: true, 
+        data: { 
+          migrationId, 
+          jobId: job.id,
+          status: 'queued' 
+        } 
+      });
+    } else {
+      // autoStart가 false일 때는 DB에만 저장 (등록 상태)
+      const migration = {
+        id: migrationId,
+        svn_url: svnUrl,
+        gitlab_project_id: gitlabProjectId,
+        status: 'registered',  // pending 대신 registered 사용
+        layout_config: layout,
+        authors_mapping: authorsMapping,
+        metadata: {
+          project_name: projectName,
+          project_path: projectPath,
+          options,
+          svnUsername: credentials.username,  // 나중에 시작할 때 필요
+          gitlabUrl: req.session.gitlabUrl,
+          gitlabToken: req.session.gitlabToken
+        }
+      };
+      
+      const migrationService = await import('../services/svnMigration.js');
+      const migrationRepository = await import('../db/migrations.js');
+      await migrationRepository.default.create(migration);
+      
+      // WebSocket으로 등록 알림
+      websocketService.emitMigrationRegistered(migrationId, {
+        svnUrl,
+        projectName,
+        status: 'registered'
+      });
+      
+      res.json({ 
+        success: true, 
+        data: { 
+          migrationId,
+          status: 'registered' 
+        } 
+      });
+    }
   } catch (error) {
     console.error('Failed to start migration:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -318,6 +358,95 @@ router.post('/migrations/:id/sync', authenticateToken, async (req, res) => {
   }
 });
 
+// 등록된 마이그레이션 시작
+router.post('/migrate/start', authenticateToken, async (req, res) => {
+  try {
+    const { migrationIds } = req.body;
+    
+    if (!migrationIds || !Array.isArray(migrationIds) || migrationIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'Migration IDs are required' });
+    }
+    
+    const migrationRepository = await import('../db/migrations.js');
+    const results = { started: 0, failed: 0, errors: [] };
+    
+    for (const migrationId of migrationIds) {
+      try {
+        // 마이그레이션 정보 조회
+        const migration = await migrationRepository.default.findById(migrationId);
+        
+        if (!migration) {
+          results.failed++;
+          results.errors.push({ migrationId, error: 'Migration not found' });
+          continue;
+        }
+        
+        if (migration.status !== 'registered') {
+          results.failed++;
+          results.errors.push({ migrationId, error: `Invalid status: ${migration.status}` });
+          continue;
+        }
+        
+        // SVN 인증 정보 복구
+        const svnCredentials = req.session.svnCredentials?.[migration.svn_url];
+        if (!svnCredentials && migration.metadata?.svnUsername) {
+          // 메타데이터에서 복구 시도
+          req.session.svnCredentials = req.session.svnCredentials || {};
+          req.session.svnCredentials[migration.svn_url] = {
+            username: migration.metadata.svnUsername,
+            password: migration.metadata.svnPassword || ''
+          };
+        }
+        
+        // 작업 데이터 준비
+        const jobData = {
+          migrationId,
+          svnUrl: migration.svn_url,
+          svnUsername: migration.metadata?.svnUsername || svnCredentials?.username,
+          svnPassword: migration.metadata?.svnPassword || svnCredentials?.password,
+          gitlabProjectId: migration.gitlab_project_id,
+          projectName: migration.metadata?.project_name,
+          projectPath: migration.metadata?.project_path,
+          layout: migration.layout_config,
+          authorsMapping: migration.authors_mapping,
+          options: migration.metadata?.options || {},
+          gitlabUrl: migration.metadata?.gitlabUrl || req.session.gitlabUrl,
+          gitlabToken: migration.metadata?.gitlabToken || req.session.gitlabToken
+        };
+        
+        // 작업 큐에 추가
+        const job = await jobQueueService.addMigrationJob(jobData);
+        
+        // 상태를 pending으로 업데이트
+        await migrationRepository.default.update(migrationId, {
+          status: 'pending',
+          metadata: {
+            ...migration.metadata,
+            jobId: job.id
+          }
+        });
+        
+        // WebSocket으로 시작 알림
+        websocketService.emitMigrationStarted(migrationId, {
+          svnUrl: migration.svn_url,
+          projectName: migration.metadata?.project_name,
+          jobId: job.id
+        });
+        
+        results.started++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push({ migrationId, error: error.message });
+      }
+    }
+    
+    res.json({ success: true, data: results });
+  } catch (error) {
+    console.error('Failed to start migrations:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // 마이그레이션 중지 (실행 중인 작업 취소)
 router.post('/migrations/:id/stop', authenticateToken, async (req, res) => {
   try {
@@ -502,6 +631,54 @@ router.get('/queue/status', authenticateToken, async (req, res) => {
     res.json({ success: true, data: status });
   } catch (error) {
     console.error('Failed to get queue status:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 동시 실행 수 설정
+router.put('/settings/concurrent-limit', authenticateToken, async (req, res) => {
+  try {
+    const { limit } = req.body;
+    
+    if (!limit || typeof limit !== 'number' || limit < 1 || limit > 10) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Limit must be a number between 1 and 10' 
+      });
+    }
+    
+    // 세션에 저장
+    req.session.concurrentMigrations = limit;
+    
+    // Bull 큐 동시 실행 수 업데이트
+    await jobQueueService.updateConcurrency(limit);
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        limit,
+        message: `Concurrent migrations limit set to ${limit}` 
+      } 
+    });
+  } catch (error) {
+    console.error('Failed to set concurrent limit:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 현재 동시 실행 수 조회
+router.get('/settings/concurrent-limit', authenticateToken, async (req, res) => {
+  try {
+    const limit = req.session.concurrentMigrations || 
+                  parseInt(process.env.MAX_CONCURRENT_MIGRATIONS) || 
+                  2;
+    
+    res.json({ 
+      success: true, 
+      data: { limit } 
+    });
+  } catch (error) {
+    console.error('Failed to get concurrent limit:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

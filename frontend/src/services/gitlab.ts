@@ -186,13 +186,17 @@ export const gitlabService = {
     layout: any;
     authorsMapping: Record<string, string>;
     options?: any;
+    autoStart?: boolean;
   }) {
     console.log('gitlabService.startSvnMigration sending:', {
       projectName: data.projectName,
       projectPath: data.projectPath,
       fullData: data
     });
-    const response = await axios.post('/api/svn/migrate', data, { withCredentials: true });
+    const response = await axios.post('/api/svn/migrate', {
+      ...data,
+      autoStart: data.autoStart !== undefined ? data.autoStart : false  // 기본값 false
+    }, { withCredentials: true });
     return response.data.data;
   },
 
@@ -272,5 +276,21 @@ export const gitlabService = {
 
   async getMigrationById(id: string) {
     return this.getSvnMigrationById(id);
+  },
+
+  // 새로운 메소드들
+  async startMigrations(migrationIds: string[]) {
+    const response = await axios.post('/api/svn/migrate/start', { migrationIds }, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async setConcurrentLimit(limit: number) {
+    const response = await axios.put('/api/svn/settings/concurrent-limit', { limit }, { withCredentials: true });
+    return response.data.data;
+  },
+
+  async getConcurrentLimit() {
+    const response = await axios.get('/api/svn/settings/concurrent-limit', { withCredentials: true });
+    return response.data.data;
   }
 };

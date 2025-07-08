@@ -99,6 +99,13 @@ const websocketService = {
     }
     ioInstance.emit('migration:synced', { id: migrationId, ...result });
   },
+  emitMigrationRegistered: (migrationId, data) => {
+    if (!ioInstance) {
+      logger.warn('WebSocket service not initialized yet');
+      return;
+    }
+    ioInstance.emit('migration:registered', { id: migrationId, ...data });
+  },
   emitMigrationResumed: (migrationId, data) => {
     if (!ioInstance) {
       logger.warn('WebSocket service not initialized yet');
