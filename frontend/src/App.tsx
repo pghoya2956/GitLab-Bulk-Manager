@@ -13,8 +13,6 @@ import { Login } from './pages/Login';
 import { PrivateRoute } from './components/PrivateRoute';
 import { SystemHealth } from './pages/SystemHealth';
 import { Documentation } from './pages/Documentation';
-import MigrationMonitor from './pages/MigrationMonitor';
-import MigrationMonitorKanban from './pages/MigrationMonitorKanban';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WebSocketProvider } from './components/WebSocketProvider';
 import './services/axiosConfig';
@@ -50,7 +48,6 @@ function App() {
                     <Route path="bulk-import" element={<Navigate to="/groups-projects" replace />} />
                     <Route path="monitoring" element={<Navigate to="/system-health" replace />} />
                     <Route path="system-health" element={<SystemHealth />} />
-                    <Route path="migration-monitor" element={<MigrationMonitor />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="docs" element={<Documentation />} />
                   </Route>

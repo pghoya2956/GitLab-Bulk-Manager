@@ -5,6 +5,7 @@ import { useAppSelector } from '../store/hooks';
 export const useWebSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
 
   useEffect(() => {
@@ -12,10 +13,14 @@ export const useWebSocket = () => {
       return;
     }
 
-    // Create socket connection
+    // Create socket connection with reconnection options
     const socket = io('/', {
       withCredentials: true,
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity,
     });
 
     socketRef.current = socket;
@@ -27,6 +32,12 @@ export const useWebSocket = () => {
       
       // Authenticate the socket connection
       socket.emit('authenticate', 'token');
+    });
+    
+    // Keep-alive ping/pong
+    socket.on('ping', () => {
+      console.log('[WebSocket] Ping received, sending pong');
+      socket.emit('pong');
     });
 
     socket.on('disconnect', () => {
@@ -44,8 +55,27 @@ export const useWebSocket = () => {
       console.error('WebSocket connection error:', error);
     });
 
+    socket.on('reconnect', (attemptNumber) => {
+      console.log(`WebSocket reconnected after ${attemptNumber} attempts`);
+    });
+
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log(`WebSocket reconnection attempt ${attemptNumber}`);
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('WebSocket reconnection error:', error);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('WebSocket reconnection failed');
+    });
+
     // Cleanup on unmount
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       if (socket) {
         socket.disconnect();
         socketRef.current = null;

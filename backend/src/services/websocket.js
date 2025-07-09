@@ -49,70 +49,6 @@ const websocketService = {
     }
     ioInstance.to(`project:${projectId}`).emit('project:updated', data);
   },
-  // SVN Migration events
-  emitMigrationStarted: (migrationId, data) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:started', { id: migrationId, ...data });
-  },
-  emitMigrationProgress: (migrationId, progress) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:progress', { id: migrationId, ...progress });
-  },
-  emitMigrationLog: (migrationId, log) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:log', { id: migrationId, ...log });
-  },
-  emitMigrationCompleted: (migrationId, result) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:completed', { id: migrationId, ...result });
-  },
-  emitMigrationFailed: (migrationId, error) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:failed', { id: migrationId, ...error });
-  },
-  emitMigrationSyncing: (migrationId, data) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:syncing', { id: migrationId, ...data });
-  },
-  emitMigrationSynced: (migrationId, result) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:synced', { id: migrationId, ...result });
-  },
-  emitMigrationRegistered: (migrationId, data) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:registered', { id: migrationId, ...data });
-  },
-  emitMigrationResumed: (migrationId, data) => {
-    if (!ioInstance) {
-      logger.warn('WebSocket service not initialized yet');
-      return;
-    }
-    ioInstance.emit('migration:resumed', { id: migrationId, ...data });
-  },
   broadcast: (event, data) => {
     if (!ioInstance) {
       logger.warn('WebSocket service not initialized yet');
@@ -124,8 +60,9 @@ const websocketService = {
 
 export const setupWebSocket = (io) => {
   ioInstance = io;
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     logger.info(`WebSocket client connected: ${socket.id}`);
+    
 
     // Authenticate the socket connection
     socket.on('authenticate', (_token) => {
@@ -199,6 +136,19 @@ export const setupWebSocket = (io) => {
     socket.on('disconnect', () => {
       connectedClients.delete(socket.id);
       logger.info(`WebSocket client disconnected: ${socket.id}`);
+    });
+    
+    // Ping/pong to keep connection alive
+    const pingInterval = setInterval(() => {
+      socket.emit('ping');
+    }, 30000); // 30초마다 ping
+    
+    socket.on('pong', () => {
+      // Client is alive
+    });
+    
+    socket.on('disconnect', () => {
+      clearInterval(pingInterval);
     });
   });
 };

@@ -22,8 +22,6 @@ import { ConfirmTransferDialog } from '../components/ConfirmTransferDialog';
 import { ConfirmBulkTransferDialog } from '../components/ConfirmBulkTransferDialog';
 import { BulkImportDialog } from '../components/bulk/BulkImportDialog';
 import { BulkSettingsDialog } from '../components/bulk/BulkSettingsDialog';
-import SvnMigrationDialog from '../components/svn/SvnMigrationDialog';
-import BulkSvnMigrationDialog from '../components/svn/BulkSvnMigrationDialog';
 import { useNotification } from '../hooks/useNotification';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -37,7 +35,6 @@ import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import UploadIcon from '@mui/icons-material/Upload';
-import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 
 interface TreeNode {
@@ -63,8 +60,6 @@ export const GroupsProjects: React.FC = () => {
   const [showOnlyDeveloperPlus, setShowOnlyDeveloperPlus] = useState(true);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkSettingsOpen, setBulkSettingsOpen] = useState(false);
-  const [svnMigrationOpen, setSvnMigrationOpen] = useState(false);
-  const [bulkSvnMigrationOpen, setBulkSvnMigrationOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
   const [bulkMenuAnchor, setBulkMenuAnchor] = useState<null | HTMLElement>(null);
@@ -401,31 +396,6 @@ export const GroupsProjects: React.FC = () => {
           
           <Divider orientation="vertical" flexItem sx={{ mr: 2 }} />
           
-          {/* SVN Migration Button */}
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={<CompareArrowsIcon />}
-            onClick={() => setSvnMigrationOpen(true)}
-            sx={{ 
-              minWidth: 150,
-              py: 1.5,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              fontWeight: 600,
-              textTransform: 'none',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
-              },
-              transition: 'all 0.3s ease',
-              boxShadow: '0 2px 10px rgba(102, 126, 234, 0.3)',
-            }}
-          >
-            SVN to Git
-          </Button>
-          
           {/* Bulk Import Button */}
           <Button
             variant="contained"
@@ -603,13 +573,6 @@ export const GroupsProjects: React.FC = () => {
             </Typography>
           )}
         </MenuItem>
-        <Divider />
-        <MenuItem onClick={() => {
-          setBulkSvnMigrationOpen(true);
-          handleAddMenuClose();
-        }}>
-          Bulk SVN Migration
-        </MenuItem>
       </Menu>
 
       {/* Context Menu */}
@@ -737,29 +700,6 @@ export const GroupsProjects: React.FC = () => {
         }}
       />
 
-      <SvnMigrationDialog
-        open={svnMigrationOpen}
-        onClose={() => setSvnMigrationOpen(false)}
-        selectedGroup={selectedNode?.type === 'group' ? {
-          id: parseInt(selectedNode.id.replace('group-', '')),
-          name: selectedNode.name,
-          full_path: selectedNode.full_path,
-        } : undefined}
-        onSuccess={() => {
-          setSvnMigrationOpen(false);
-          setRefreshTrigger(prev => prev + 1);
-        }}
-      />
-
-      <BulkSvnMigrationDialog
-        open={bulkSvnMigrationOpen}
-        onClose={() => setBulkSvnMigrationOpen(false)}
-        selectedGroup={selectedNode?.type === 'group' ? {
-          id: parseInt(selectedNode.id.replace('group-', '')),
-          name: selectedNode.name,
-          full_path: selectedNode.full_path,
-        } : undefined}
-      />
     </Box>
   );
 };

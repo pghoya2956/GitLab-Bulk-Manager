@@ -12,7 +12,11 @@ export const Login: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const handleLogin = async () => {
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     if (token) {
       try {
         // Authenticate through backend proxy
@@ -51,7 +55,7 @@ export const Login: React.FC = () => {
             {error}
           </Alert>
         )}
-        <Box component="form" sx={{ mt: 2 }}>
+        <Box component="form" sx={{ mt: 2 }} onSubmit={handleLogin}>
           <TextField
             fullWidth
             label="GitLab URL"
@@ -71,7 +75,7 @@ export const Login: React.FC = () => {
           <Button
             fullWidth
             variant="contained"
-            onClick={handleLogin}
+            type="submit"
             sx={{ mt: 3 }}
             disabled={!token}
           >
