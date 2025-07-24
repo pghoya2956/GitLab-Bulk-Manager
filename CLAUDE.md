@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🎯 Application Focus
+
+GitLab Bulk Manager is a tool focused on managing GitLab groups, projects, and permissions at scale. The application provides:
+- Bulk CRUD operations for groups and projects
+- Bulk settings management (visibility, protected branches, push rules)
+- Permission management and visualization
+- Real-time progress tracking for bulk operations
+
+**Note**: SVN migration features have been removed from this application.
+
 
 ## 🚨 Critical Setup Instructions
 
@@ -17,7 +27,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🏗️ Architecture Overview
 
-### Two-Tier Architecture
+### Architecture
 
 ```
 Frontend (React SPA :3000) ← → Backend (Express :4000) ← → GitLab API

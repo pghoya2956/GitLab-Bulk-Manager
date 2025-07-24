@@ -24,7 +24,6 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import PersonIcon from '@mui/icons-material/Person';
 import FolderIcon from '@mui/icons-material/Folder';
 import DescriptionIcon from '@mui/icons-material/Description';
-import SpeedIcon from '@mui/icons-material/Speed';
 import { format } from 'date-fns';
 
 interface HealthData {
@@ -111,12 +110,6 @@ export const SystemHealth: React.FC = () => {
     }
   };
 
-  const getRateLimitPercentage = () => {
-    if (!healthData?.components.rateLimit) {return 0;}
-    const { limit, remaining } = healthData.components.rateLimit;
-    if (!limit || !remaining) {return 0;}
-    return (parseInt(remaining) / parseInt(limit)) * 100;
-  };
 
   if (loading && !healthData) {
     return (
@@ -244,43 +237,6 @@ export const SystemHealth: React.FC = () => {
               </Card>
             </Grid>
 
-            {/* API Rate Limit */}
-            <Grid item xs={12}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <SpeedIcon sx={{ mr: 1 }} />
-                    <Typography variant="h6">API Rate Limit</Typography>
-                  </Box>
-                  
-                  {healthData.components.rateLimit && (
-                    <>
-                      <Box sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2">
-                            사용 가능: {healthData.components.rateLimit.remaining} / {healthData.components.rateLimit.limit}
-                          </Typography>
-                          <Typography variant="body2">
-                            {getRateLimitPercentage().toFixed(0)}%
-                          </Typography>
-                        </Box>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={getRateLimitPercentage()} 
-                          sx={{ height: 10, borderRadius: 5 }}
-                        />
-                      </Box>
-                      
-                      {healthData.components.rateLimit.reset && (
-                        <Typography variant="body2" color="text.secondary">
-                          리셋 시간: {new Date(parseInt(healthData.components.rateLimit.reset) * 1000).toLocaleTimeString()}
-                        </Typography>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
 
             {/* 컴포넌트 상태 */}
             <Grid item xs={12}>
@@ -289,23 +245,25 @@ export const SystemHealth: React.FC = () => {
                   <Typography variant="h6" gutterBottom>컴포넌트 상태</Typography>
                   
                   <Grid container spacing={2}>
-                    {Object.entries(healthData.components).map(([key, component]) => (
-                      <Grid item xs={12} sm={6} md={3} key={key}>
-                        <Paper variant="outlined" sx={{ p: 2 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Typography variant="subtitle2">
-                              {key.charAt(0).toUpperCase() + key.slice(1)}
-                            </Typography>
-                            {getStatusIcon(component.status)}
-                          </Box>
-                          {'error' in component && component.error && (
-                            <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-                              {component.error}
-                            </Typography>
-                          )}
-                        </Paper>
-                      </Grid>
-                    ))}
+                    {Object.entries(healthData.components)
+                      .filter(([key]) => key !== 'rateLimit')
+                      .map(([key, component]) => (
+                        <Grid item xs={12} sm={6} md={4} key={key}>
+                          <Paper variant="outlined" sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Typography variant="subtitle2">
+                                {key.charAt(0).toUpperCase() + key.slice(1)}
+                              </Typography>
+                              {getStatusIcon(component.status)}
+                            </Box>
+                            {'error' in component && component.error && (
+                              <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                                {component.error}
+                              </Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+                      ))}
                   </Grid>
                 </CardContent>
               </Card>

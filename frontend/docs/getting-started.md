@@ -2,16 +2,48 @@
 
 ## Prerequisites
 
-- Node.js 16+ and npm
-- GitLab instance with API access
-- GitLab Personal Access Token with appropriate scopes
+Before installing GitLab Bulk Manager, ensure you have:
 
-## Installation
+- **Node.js 18+** and npm 9+
+- **GitLab instance** (self-hosted or GitLab.com)
+- **GitLab Personal Access Token** with appropriate scopes
+- **Modern web browser** (Chrome, Firefox, Safari, or Edge)
 
-1. **Clone the repository**
+## Quick Start
+
+### Using the Management Script (Recommended)
+
+The easiest way to get started is using the provided management script:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd gitlab-bulk-manager
+
+# Start both frontend and backend
+./manage.sh start
+
+# View logs
+./manage.sh logs
+
+# Check status
+./manage.sh status
+
+# Stop all services
+./manage.sh stop
+```
+
+The application will be available at:
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:4000`
+
+## Manual Installation
+
+### Backend Setup
+
+1. **Navigate to backend directory**
    ```bash
-   git clone <repository-url>
-   cd gitlab-bulk-manager/frontend
+   cd backend
    ```
 
 2. **Install dependencies**
@@ -25,120 +57,254 @@
    ```
    
    Edit `.env` and set:
-   ```
-   VITE_API_URL=http://localhost:5000
+   ```bash
+   PORT=4000
+   SESSION_SECRET=your-secret-key-here
+   # Optional: Set default GitLab instance
+   GITLAB_URL=https://gitlab.com
    ```
 
-4. **Start development server**
+4. **Start the backend server**
+   ```bash
+   npm start
+   ```
+
+### Frontend Setup
+
+1. **Navigate to frontend directory**
+   ```bash
+   cd frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Start development server**
    ```bash
    npm run dev
    ```
 
-   The application will be available at `http://localhost:3000`
-
-## Backend Setup
-
-The frontend requires the backend API server to be running:
-
-1. **Configure GitLab credentials**
-   ```bash
-   cd ../Scripts
-   cp config/gitlab.env.example config/gitlab.env
-   ```
-   
-   Edit `config/gitlab.env`:
-   ```bash
-   GITLAB_URL="https://gitlab.example.com"
-   GITLAB_TOKEN="your-personal-access-token"
-   ```
-
-2. **Start the API server**
-   ```bash
-   cd ../backend
-   npm install
-   npm start
-   ```
+   The frontend will be available at `http://localhost:3000`
 
 ## First Login
 
-1. Navigate to `http://localhost:3000`
-2. You'll be redirected to the login page
-3. Enter your GitLab credentials:
-   - GitLab URL: Your GitLab instance URL
-   - Access Token: Your personal access token
+1. **Navigate to the application**
+   Open `http://localhost:3000` in your browser
 
-The credentials are stored in localStorage and used for all API requests.
+2. **Login with GitLab credentials**
+   - **GitLab URL**: Your GitLab instance URL (e.g., `https://gitlab.com`)
+   - **Personal Access Token**: Your GitLab PAT (see below for creation)
 
-## Configuration Files
+3. **Verify connection**
+   The dashboard should display your GitLab statistics
 
-### Frontend Configuration
+## Creating a GitLab Personal Access Token
 
-- `.env` - Environment variables for the frontend
-- `vite.config.ts` - Vite build configuration
-- `tsconfig.json` - TypeScript configuration
+### Required Scopes
 
-### Backend Configuration
+Create a token with the following scopes:
+- ✅ `api` - Full API access (required)
+- ✅ `read_user` - Read user information
+- ✅ `read_api` - Read-only API access (optional)
 
-- `Scripts/config/gitlab.env` - GitLab API credentials
-- `Scripts/config/*.txt` - Input files for bulk operations
+### Token Creation Steps
+
+1. **Log in to GitLab**
+2. **Navigate to User Settings**
+   - Click your avatar → Preferences → Access Tokens
+3. **Create new token**
+   - Name: `GitLab Bulk Manager`
+   - Expiry date: Set as needed
+   - Select required scopes
+4. **Copy the token immediately**
+   - It won't be shown again!
+
+## Configuration
+
+### Environment Variables
+
+#### Backend (.env)
+```bash
+# Server Configuration
+PORT=4000
+NODE_ENV=development
+
+# Session Configuration  
+SESSION_SECRET=your-session-secret
+
+# GitLab Defaults (Optional)
+GITLAB_URL=https://gitlab.com
+GITLAB_TOKEN=your-default-token
+
+# Logging
+LOG_LEVEL=info
+```
+
+#### Frontend
+The frontend automatically connects to the backend on port 4000. No configuration needed for development.
+
+### Production Configuration
+
+For production deployment:
+
+1. **Build the frontend**
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. **Set production environment**
+   ```bash
+   NODE_ENV=production
+   ```
+
+3. **Use a process manager**
+   ```bash
+   npm install -g pm2
+   pm2 start backend/src/index.js --name gitlab-bulk-manager
+   ```
 
 ## Project Structure
 
 ```
-frontend/
-├── src/
-│   ├── components/     # Reusable UI components
-│   ├── pages/         # Page components
-│   ├── services/      # API service layer
-│   ├── store/         # Redux store and slices
-│   ├── hooks/         # Custom React hooks
-│   └── utils/         # Utility functions
-├── public/            # Static assets
-└── docs/             # Documentation
+gitlab-bulk-manager/
+├── backend/
+│   ├── src/
+│   │   ├── index.js          # Express server setup
+│   │   ├── routes/           # API endpoints
+│   │   ├── middleware/       # Auth & error handling
+│   │   └── services/         # Business logic
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── pages/           # Page components
+│   │   ├── components/      # Reusable components
+│   │   ├── services/        # API services
+│   │   ├── store/           # Redux store
+│   │   └── App.tsx          # Main app component
+│   ├── public/              # Static assets
+│   └── package.json
+├── docs/                    # Documentation
+└── manage.sh               # Management script
 ```
 
-## GitLab Personal Access Token
+## Common Issues & Solutions
 
-To use this application, you need a GitLab Personal Access Token with the following scopes:
+### Connection Refused
 
-- `api` - Full API access
-- `read_user` - Read user information
-- `read_api` - Read access to the API (if using read-only features)
+**Problem**: Cannot connect to backend
+```
+Error: Network Error at http://localhost:4000
+```
 
-### Creating a Personal Access Token
-
-1. Log in to your GitLab instance
-2. Go to User Settings → Access Tokens
-3. Create a new token with the required scopes
-4. Copy the token immediately (it won't be shown again)
-
-## Common Issues
+**Solution**: Ensure the backend is running
+```bash
+./manage.sh status
+./manage.sh start
+```
 
 ### Authentication Failed
-- Verify your GitLab URL is correct (include `https://`)
-- Check that your token hasn't expired
-- Ensure the token has the required scopes
 
-### Cannot Connect to Backend
-- Ensure the backend server is running on port 5000
-- Check that VITE_API_URL in `.env` is correct
-- Look for CORS errors in the browser console
+**Problem**: Login fails with 401 error
 
-### Missing Dependencies
+**Solutions**:
+1. Verify your GitLab URL includes the protocol (`https://`)
+2. Check token has not expired
+3. Ensure token has `api` scope
+4. Try creating a new token
+
+### CORS Errors
+
+**Problem**: CORS policy blocking requests
+
+**Solution**: The backend should handle CORS. Check:
+- Backend is running on port 4000
+- Frontend is using the proxy configuration
+- No direct GitLab API calls from frontend
+
+### Port Already in Use
+
+**Problem**: Port 3000 or 4000 already in use
+
+**Solution**: 
 ```bash
-# Clear node_modules and reinstall
-rm -rf node_modules package-lock.json
-npm install
+# Find process using port
+lsof -i :3000
+lsof -i :4000
+
+# Kill process
+kill -9 <PID>
+
+# Or use different ports
+PORT=3001 npm run dev  # Frontend
+PORT=4001 npm start    # Backend
 ```
+
+### Session Expired
+
+**Problem**: Logged out unexpectedly
+
+**Solution**: 
+- Sessions expire after inactivity
+- Simply log in again
+- For longer sessions, configure `SESSION_TIMEOUT` in backend
 
 ## Next Steps
 
-1. **Explore the Dashboard**: Get an overview of your GitLab instance
-2. **Try Group Management**: Create and organize groups
-3. **Import Data**: Use bulk operations to import from CSV
-4. **Check Permissions**: View your access levels with Permission Tree
+Once you're logged in successfully:
 
-For more detailed information, see:
-- [Architecture Overview](./architecture.md)
-- [Development Guide](./development.md)
-- [Features Documentation](./features.md)
+1. **Explore the Dashboard**
+   - View GitLab statistics
+   - Check system health
+   - Review recent activities
+
+2. **Navigate Groups & Projects**
+   - Use the tree view to explore
+   - View your permissions
+   - Try drag-and-drop reorganization
+
+3. **Try Bulk Operations**
+   - Download sample CSV templates
+   - Import a test group
+   - Create multiple projects
+
+4. **Review Documentation**
+   - Access in-app documentation
+   - Learn keyboard shortcuts
+   - Watch tutorial videos
+
+## Getting Help
+
+### Resources
+
+- **In-app Documentation**: Click the "Docs" link in the navigation
+- **API Reference**: Available at `/api/docs` when backend is running
+- **Issue Tracker**: Report bugs on GitLab/GitHub
+- **Community Support**: Join our Discord/Slack channel
+
+### Debug Mode
+
+Enable debug logging for troubleshooting:
+```bash
+# Backend
+LOG_LEVEL=debug npm start
+
+# Frontend  
+VITE_DEBUG=true npm run dev
+```
+
+### Support Checklist
+
+When reporting issues, please include:
+- [ ] GitLab version
+- [ ] Browser and version
+- [ ] Node.js version (`node --version`)
+- [ ] Error messages from browser console
+- [ ] Backend logs
+- [ ] Steps to reproduce
+
+---
+
+**Last Updated**: 2025-07-24

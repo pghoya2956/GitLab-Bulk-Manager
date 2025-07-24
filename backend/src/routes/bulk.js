@@ -336,7 +336,8 @@ router.get('/health-check', async (req, res) => {
 
     // API rate limit 확인
     try {
-      const response = await axios.get(`${process.env.GITLAB_API_URL || 'https://gitlab.com/api/v4'}/version`, {
+      const baseURL = req.session.gitlabUrl || GITLAB_CONFIG.DEFAULT_URL;
+      const response = await axios.get(`${baseURL}${GITLAB_CONFIG.API_VERSION}/version`, {
         headers: {
           'PRIVATE-TOKEN': req.session.gitlabToken,
         },
@@ -344,13 +345,14 @@ router.get('/health-check', async (req, res) => {
 
       healthData.components.rateLimit = {
         status: 'healthy',
-        limit: response.headers['ratelimit-limit'],
-        remaining: response.headers['ratelimit-remaining'],
-        reset: response.headers['ratelimit-reset'],
+        limit: response.headers['ratelimit-limit'] || response.headers['x-ratelimit-limit'],
+        remaining: response.headers['ratelimit-remaining'] || response.headers['x-ratelimit-remaining'],
+        reset: response.headers['ratelimit-reset'] || response.headers['x-ratelimit-reset'],
       };
     } catch (error) {
       healthData.components.rateLimit = {
         status: 'unknown',
+        error: error.message,
       };
     }
 

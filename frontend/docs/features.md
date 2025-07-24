@@ -1,165 +1,283 @@
 # Features
 
+## Overview
+
+GitLab Bulk Manager provides a comprehensive suite of tools for efficient GitLab administration. This document details all available features and their capabilities.
+
 ## Dashboard
-The main dashboard provides an overview of your GitLab instance:
-- Total number of groups
-- Total number of projects  
-- Active users count
-- Quick access to all major features
-- Permission overview with PermissionTree component
+The main dashboard provides a real-time overview of your GitLab instance:
+- **Resource Statistics**: Total groups, projects, and active users
+- **Quick Actions**: Direct access to all major features
+- **System Health**: At-a-glance system status
+- **Permission Overview**: Summary of your access levels across the instance
+- **Recent Activity**: Latest bulk operations and their status
 
-## Group Management
+## Group & Project Management
 
-### Hierarchical Tree View
-- **Lazy Loading**: Groups and subgroups load on-demand for performance
-- **Visual Indicators**: Icons show group/project types and visibility levels
-- **Search**: Real-time filtering of groups and projects
-- **Drag-and-Drop**: Reorganize group hierarchy visually
+### Unified Tree View
+The Groups & Projects page features an advanced tree interface:
+- **Hierarchical Display**: Visual representation of your GitLab structure
+- **Lazy Loading**: Groups and subgroups load on-demand for optimal performance
+- **Visual Indicators**: 
+  - Icons showing group/project types
+  - Visibility levels (public, internal, private)
+  - Member counts
+  - Your access level badges
+- **Real-time Search**: Filter groups and projects instantly
+- **Drag-and-Drop**: Reorganize group hierarchy with visual feedback
 
-### Group Operations
-- Create new groups and subgroups
-- Update group settings (visibility, description)
-- Delete groups with confirmation
-- View group details and statistics
+### Integrated Permissions Display
+- **Access Level Badges**: Color-coded indicators (Owner, Maintainer, Developer, Reporter, Guest)
+- **Member Counts**: See total members for each group/project
+- **Developer+ Filter**: Toggle to show only items where you have Developer access or higher
+- **Permission Inheritance**: Visual indication of inherited permissions
 
-## Project Management
+### CRUD Operations
 
-### Two-Pane Layout
-- **Left Panel**: Tree navigation with all groups and projects
-- **Right Panel**: Details and actions for selected item
+#### Group Operations
+- **Create Groups**: Single or nested group creation with full configuration
+- **Update Settings**: Batch update visibility, description, and other settings
+- **Move Groups**: Drag-and-drop reorganization with validation
+- **Delete Groups**: Safe deletion with dependency checking
 
-### Project Features
-- Create projects within groups
-- Clone projects
-- Update project settings
-- Batch operations on multiple projects
-- Quick access to project URLs
+#### Project Operations
+- **Create Projects**: Within any group with template support
+- **Clone Projects**: Duplicate project structure and settings
+- **Batch Updates**: Modify multiple project settings simultaneously
+- **Archive/Unarchive**: Bulk archive operations
 
 ## Bulk Operations
 
-### Context-Aware Interface
-The bulk operations page uses a two-step process:
-1. **Select Target Group**: Choose where operations will be performed
-2. **Choose Operation**: Import groups, projects, or members
+### Smart CSV Import Interface
+The bulk operations page provides context-aware importing:
+
+1. **Target Selection**: Choose destination group before importing
+2. **Operation Types**: 
+   - Import Groups
+   - Import Projects
+   - Import Members
+   - Import Settings
 
 ### Import Groups
-Import multiple groups from a CSV file:
+Create multiple groups from CSV with hierarchical support:
 ```csv
-name|path|parent_id|description|visibility
-Frontend Team|frontend||Frontend development team|private
-Backend Team|backend||Backend development team|internal
+name|path|parent_id|description|visibility|lfs_enabled|request_access_enabled
+Frontend Team|frontend||Frontend development team|private|true|false
+React Components|react-components|frontend|React component library|internal|true|true
+Vue Components|vue-components|frontend|Vue component library|internal|true|true
 ```
 
 **Features:**
-- Shows selected parent group clearly
-- Progress tracking for each import
-- Success/failure status for each row
-- Detailed error messages
+- Hierarchical structure support
+- Visibility and feature configuration
+- Progress tracking per row
+- Detailed error reporting
+- Rollback on failure option
 
 ### Import Projects
-Batch create projects from CSV:
+Batch create projects with full configuration:
 ```csv
-name|group_id|description|visibility|issues_enabled|wiki_enabled|default_branch
-web-app|123|Main web application|private|true|true|main
-api-service|123|API service|internal|true|false|main
+name|path|description|visibility|issues_enabled|wiki_enabled|merge_requests_enabled|default_branch
+web-app|web-app|Main web application|private|true|true|true|main
+mobile-api|mobile-api|Mobile API service|internal|true|false|true|main
+docs-site|docs-site|Documentation website|public|true|true|false|main
 ```
 
 **Features:**
-- Automatic group assignment
-- Project settings configuration
-- Namespace validation
+- Automatic namespace resolution
+- Project feature toggles
+- Branch configuration
+- Template application
+- Import with initial content
 
 ### Import Members
-Add multiple members to groups:
+Add multiple members with role assignments:
 ```csv
-email|group_path|access_level|expiry_date
-user@example.com|dev-team|developer|2024-12-31
-lead@example.com|dev-team|maintainer|
+username|email|access_level|expires_at|can_create_group|can_create_project
+john.doe|john@example.com|developer|2024-12-31|false|true
+jane.smith|jane@example.com|maintainer||true|true
+bob.wilson|bob@example.com|guest|2024-06-30|false|false
 ```
 
+**Supported Access Levels:**
+- `guest` (10)
+- `reporter` (20)
+- `developer` (30)
+- `maintainer` (40)
+- `owner` (50)
+
 **Features:**
-- User lookup by email
-- Access level assignment (guest, reporter, developer, maintainer, owner)
-- Optional expiry dates
-- Bulk permission management
+- User lookup by username or email
+- Expiration date support
+- Custom permissions
+- Notification settings
+- Bulk role changes
 
-## Jobs Management
+### Import Settings
+Apply settings to multiple groups/projects:
+```csv
+target_type|target_path|setting_type|setting_value
+group|frontend|visibility|internal
+project|frontend/web-app|issues_enabled|true
+group|backend|lfs_enabled|false
+```
 
-### Background Jobs
-Track long-running operations:
-- Real-time progress updates
-- Job status (pending, running, completed, failed)
-- Detailed logs for each job
-- Ability to cancel running jobs
+## Real-time Job Management
+
+### Job Tracking Dashboard
+Monitor all background operations:
+- **Live Progress**: Real-time updates via WebSocket
+- **Job States**: Queued, Running, Completed, Failed, Cancelled
+- **Detailed Logs**: Step-by-step execution logs
+- **Performance Metrics**: Time taken, items processed
+- **Error Details**: Comprehensive error messages with remediation hints
 
 ### Job Types
-- Group structure imports
-- Project batch creation
-- Member synchronization
-- Backup operations
+- **Bulk Imports**: Track CSV import progress
+- **Hierarchy Changes**: Monitor group/project moves
+- **Permission Updates**: Track access level changes
+- **Deletion Operations**: Monitor bulk deletions
+
+### Job Management Features
+- **Pause/Resume**: Pause long-running operations
+- **Cancel**: Stop jobs with cleanup
+- **Retry**: Re-run failed jobs
+- **Export Results**: Download job results as CSV
 
 ## Permission Management
 
-### Permission Tree View
-The PermissionTree component provides a comprehensive view of user permissions:
-- **Hierarchical Display**: Shows all groups and projects with your access levels
-- **Access Level Badges**: Color-coded badges showing your role (Owner, Maintainer, Developer, Reporter, Guest)
-- **Member Counts**: See how many members each group/project has
-- **Visibility Indicators**: Icons showing if resources are public, internal, or private
-- **Search and Filter**: Quickly find specific groups or projects
-- **Auto-expansion**: Search results automatically expand parent groups
+### Comprehensive Permission Overview
+The permission system provides complete visibility:
 
-### Permission Overview Features
-- View all your GitLab permissions in one place
-- Understand your access levels across the organization
-- Identify where you have elevated privileges
-- Quick navigation to groups and projects
-- Real-time permission data from GitLab API
+#### Permission Tree Features
+- **Hierarchical View**: See all groups and projects with your access levels
+- **Access Level Display**:
+  - **Owner** (Red): Full control
+  - **Maintainer** (Orange): Management access
+  - **Developer** (Blue): Development access
+  - **Reporter** (Green): Read and create issues
+  - **Guest** (Gray): Limited read access
+- **Inherited Permissions**: Understand permission inheritance
+- **Effective Permissions**: See calculated permissions
 
-## Search and Filter
+#### Permission Analysis
+- **Access Audit**: Review who has access to what
+- **Permission Changes**: Track permission modifications
+- **Compliance Reports**: Generate access reports
+- **Orphaned Resources**: Identify resources without proper ownership
+
+## Search and Filter Capabilities
 
 ### Global Search
-- Search across groups and projects
-- Filter by visibility level
-- Filter by type (group/project)
-- Real-time results
+- **Multi-resource Search**: Search across groups, projects, and members
+- **Advanced Filters**:
+  - By visibility level
+  - By access level
+  - By resource type
+  - By creation date
+  - By last activity
+- **Search Operators**: Support for wildcards and regex
+- **Saved Searches**: Save frequently used search queries
 
-### Tree Search
-- Inline search in tree views
-- Highlights matching items
-- Preserves tree structure
+### Tree Navigation
+- **Quick Find**: Inline search within tree views
+- **Auto-expansion**: Matching items expand automatically
+- **Highlight Matches**: Visual highlighting of search results
+- **Breadcrumb Navigation**: Quick navigation to parent groups
 
 ## User Interface Features
 
-### Responsive Design
-- Works on desktop and tablet devices
-- Adaptive layouts for different screen sizes
-- Touch-friendly for tablet use
+### Modern UI/UX
+- **Responsive Design**: Optimized for desktop and tablet
+- **Dark Mode**: System-aware theme switching
+- **Accessibility**: 
+  - Full keyboard navigation
+  - Screen reader support
+  - ARIA labels
+  - High contrast mode
 
-### Dark Mode Support
-- System preference detection
-- Manual toggle option
-- Consistent theming across components
+### Interactive Elements
+- **Tooltips**: Contextual help throughout
+- **Confirmation Dialogs**: Prevent accidental actions
+- **Progress Indicators**: Visual feedback for all operations
+- **Toast Notifications**: Non-intrusive status updates
 
-### Accessibility
-- Keyboard navigation support
-- ARIA labels for screen readers
-- High contrast mode support
-- Focus indicators
+## Performance Features
 
-## Performance Optimizations
+### Optimization Techniques
+- **Virtual Scrolling**: Handle thousands of items smoothly
+- **Lazy Loading**: Load data only when needed
+- **Request Debouncing**: Optimize API calls
+- **Caching Strategy**: 
+  - 5-minute cache for resource data
+  - Intelligent cache invalidation
+  - Offline capability for read operations
 
-### Lazy Loading
-- Tree nodes load children on-demand
-- Pagination for large result sets
-- Virtual scrolling for long lists
+### Bulk Operation Performance
+- **Batch Processing**: Process items in configurable batches
+- **Rate Limiting**: Respect GitLab API limits
+- **Parallel Processing**: Multiple operations when possible
+- **Progress Persistence**: Resume interrupted operations
 
-### Caching
-- API response caching
-- Optimistic UI updates
-- Background data refresh
+## Integration Features
 
-### Code Splitting
-- Route-based code splitting
-- Lazy component loading
-- Reduced initial bundle size
+### GitLab API Integration
+- **API Version Support**: Compatible with GitLab 13.0+
+- **Authentication Methods**:
+  - Personal Access Tokens
+  - OAuth2 (coming soon)
+- **Rate Limit Handling**: Automatic retry with backoff
+- **Error Recovery**: Graceful handling of API errors
+
+### Export/Import Capabilities
+- **Export Formats**:
+  - CSV for all data types
+  - JSON for complex structures
+  - YAML for GitLab CI/CD configs
+- **Import Validation**: Pre-import validation and preview
+- **Transformation Rules**: Data mapping and transformation
+
+## Security Features
+
+### Authentication & Authorization
+- **Secure Session Management**: Backend-stored tokens
+- **Session Timeout**: Configurable inactivity timeout
+- **Multi-factor Authentication**: When enabled on GitLab
+- **Permission Validation**: Double-check permissions before operations
+
+### Data Protection
+- **Encrypted Communication**: All API calls over HTTPS
+- **Input Sanitization**: Prevent injection attacks
+- **CSRF Protection**: Token validation for state changes
+- **Audit Logging**: Track all administrative actions
+
+## System Health Monitoring
+
+### Health Dashboard
+- **API Status**: Real-time GitLab API health
+- **Performance Metrics**: Response times and throughput
+- **Error Rates**: Track and analyze errors
+- **Resource Usage**: Monitor API quota usage
+
+### Diagnostics
+- **Connection Test**: Verify GitLab connectivity
+- **Permission Test**: Validate access token permissions
+- **Performance Test**: Measure API response times
+- **Diagnostic Export**: Generate support bundles
+
+## Documentation
+
+### Integrated Documentation
+- **In-app Docs**: Context-sensitive help
+- **API Reference**: Complete API documentation
+- **Video Tutorials**: Embedded how-to videos
+- **Keyboard Shortcuts**: Quick reference guide
+
+### Multi-language Support
+- **English**: Full documentation
+- **Korean**: Complete Korean translation
+- **Extensible**: Framework for additional languages
+
+---
+
+**Last Updated**: 2025-07-24
