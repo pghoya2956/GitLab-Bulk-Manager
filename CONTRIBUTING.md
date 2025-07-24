@@ -17,7 +17,7 @@ cp .env.example .env
 # .env 파일에 GitLab 토큰 설정
 
 # 4. 개발 서버 실행
-./start.sh
+./manage.sh start
 ```
 
 ## 📁 프로젝트 구조

@@ -51,6 +51,7 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
 
+
 networks:
   gitlab-bulk-manager:
     driver: bridge

@@ -1,7 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
+import { ArrowUpIcon as ArrowUpIconBase, ArrowDownIcon as ArrowDownIconBase } from '@heroicons/react/24/outline';
 import { Card } from '../Card/Card';
+
+const ArrowUpIcon = ArrowUpIconBase as React.FC<React.SVGProps<SVGSVGElement>>;
+const ArrowDownIcon = ArrowDownIconBase as React.FC<React.SVGProps<SVGSVGElement>>;
 
 interface StatsCardProps {
   title: string;

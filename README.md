@@ -1,198 +1,209 @@
 # GitLab Bulk Manager
 
-[![CI](https://github.com/gitlab-bulk-manager/gitlab-bulk-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/gitlab-bulk-manager/gitlab-bulk-manager/actions/workflows/ci.yml)
-[![E2E Tests](https://github.com/gitlab-bulk-manager/gitlab-bulk-manager/actions/workflows/e2e.yml/badge.svg)](https://github.com/gitlab-bulk-manager/gitlab-bulk-manager/actions/workflows/e2e.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D%2018.0.0-brightgreen)](https://nodejs.org)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/gitlab-bulk-manager/gitlab-bulk-manager)
+GitLab 그룹과 프로젝트를 대량으로 관리할 수 있는 웹 애플리케이션입니다.
 
-A powerful web-based tool for managing GitLab resources in bulk. Streamline your GitLab workflow with batch operations, visual organization, and real-time collaboration features.
+## 주요 기능
 
-GitLab 그룹과 프로젝트를 효율적으로 관리하는 강력한 웹 기반 도구입니다.
+### 1. GitLab 리소스 관리
+- 그룹/프로젝트 트리 뷰로 시각화
+- 대량 생성/삭제/설정 변경
+- 권한 관리 및 멤버 조회
+- YAML 파일로 대량 가져오기
 
-## ✨ Features / 주요 기능
+### 2. 시스템 모니터링
+- 실시간 시스템 상태 확인
+- WebSocket 연결 상태
+- 활성 작업 모니터링
 
-### 🚀 Bulk Operations / 대량 작업
-- Create multiple groups and projects from YAML templates
-- Batch update visibility, access levels, and protection rules  
-- Mass transfer projects between groups
-- Bulk delete with safety confirmations
-- YAML 기반 계층적 그룹/프로젝트 생성
-- 일괄 가시성, 접근 레벨, 보호 규칙 업데이트
-- 그룹 간 프로젝트 대량 이동
-- 안전 확인을 통한 대량 삭제
+## 시스템 요구사항
 
-### 📊 Visual Organization / 시각적 구성
-- Interactive tree view of your GitLab hierarchy
-- Drag-and-drop interface for reorganizing resources
-- Real-time permission visualization
-- Smart filtering and search capabilities
-- GitLab 계층 구조의 대화형 트리 뷰
-- 드래그 앤 드롭으로 리소스 재구성
-- 실시간 권한 시각화
-- 스마트 필터링 및 검색 기능
+- Node.js 18.0.0 이상
+- npm 9.0.0 이상
+- Git
+- Docker & Docker Compose (선택사항)
 
-### 🔒 Security & Performance / 보안 및 성능
-- Session-based authentication (tokens never exposed to frontend)
-- Real-time updates via WebSocket
-- System health monitoring dashboard
-- Comprehensive audit trails
-- 세션 기반 인증 (토큰이 프론트엔드에 노출되지 않음)
-- WebSocket을 통한 실시간 업데이트
-- 시스템 상태 모니터링 대시보드
-- 포괄적인 감사 추적
+## 빠른 시작
 
-
-## 🚀 Quick Start / 빠른 시작
-
-### Prerequisites / 필수 요구사항
-- Node.js >= 18.0.0
-- npm >= 9.0.0
-- GitLab account with Personal Access Token (API scope required)
-- GitLab 계정 및 Personal Access Token (API 권한 필요)
-
-### Installation / 설치
-
+### 1. 저장소 클론
 ```bash
-# 1. Clone the repository / 저장소 복제
-git clone https://github.com/gitlab-bulk-manager/gitlab-bulk-manager.git
+git clone https://github.com/your-repo/gitlab-bulk-manager.git
 cd gitlab-bulk-manager
+```
 
-# 2. Install dependencies / 의존성 설치
+### 2. 환경 설정
+
+#### Backend 설정 (.env)
+```bash
+cd backend
+cp .env.example .env
+```
+
+`.env` 파일 수정:
+```env
+PORT=4000
+SESSION_SECRET=your-secret-key-here
+FRONTEND_URL=http://localhost:3000
+```
+
+
+
+### 3. 의존성 설치 및 실행
+
+#### 방법 1: 관리 스크립트 사용 (권장)
+```bash
+# 프로젝트 루트에서
 npm install
 
-# 3. Configure environment / 환경 설정
-cp backend/.env.example backend/.env
-# Edit backend/.env with your settings / 설정 편집
-
-# 4. Start the application / 애플리케이션 시작
-./manage.sh start
-```
-
-Access the application at / 다음 주소로 접속:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:4000
-
-## 🏗️ 기술 스택
-
-**Frontend**: React 18, TypeScript, Material-UI, Redux Toolkit  
-**Backend**: Node.js, Express, GitLab API Proxy  
-**통신**: Backend 프록시 패턴 (CORS 회피)
-
-## ✨ 상세 기능
-
-### 📁 그룹/프로젝트 관리
-- 트리 구조로 탐색 및 관리
-- 대량 생성 (YAML/CSV)
-- 멤버 권한 관리
-
-### 🚀 대량 작업
-- YAML 편집기 (템플릿 제공)
-- 시각적 계층 빌더
-- CSV 가져오기 (레거시)
-
-### 📊 시스템 모니터링
-- GitLab 인스턴스 상태
-- API 사용량 추적
-- 인증 상태 확인
-
-## 📋 필수 요구사항
-
-- Node.js 16+
-- npm 7+
-- GitLab Personal Access Token (api, read_api 권한)
-
-## 🚀 설치 및 실행
-
-### 자동 설정 (권장)
-```bash
-# 서버 시작
+# 일반 실행
 ./manage.sh start
 
-# 서버 중지
-./manage.sh stop  
-
-# 서버 재시작
-./manage.sh restart
-
-# 상태 확인
-./manage.sh status
-
-# 로그 보기
-./manage.sh logs
+# 터미널에서 색상 코드가 깨지는 경우
+./manage-simple.sh start
 ```
 
-### 수동 설정
+이 명령어는 자동으로:
+- Backend (포트 4000)
+- Frontend (포트 3000) 
+를 모두 시작합니다.
+
+#### 방법 2: 개별 실행
 ```bash
-# Backend 설정
+# Backend
 cd backend
 npm install
-cp .env.example .env
-# .env에 GitLab 토큰 설정
+npm run dev
 
-# Frontend 설정
-cd ../frontend
+# Frontend (새 터미널)
+cd frontend
 npm install
+npm run dev
 
-# 실행
-cd backend && npm run dev  # 터미널 1
-cd frontend && npm run dev # 터미널 2
 ```
 
-## 📄 YAML 형식 예제
-
-### 서브그룹 생성
-```yaml
-parent_id: 123
-subgroups:
-  - name: Backend
-    path: backend
-    subgroups:
-      - name: API
-        path: api
-```
-
-### 프로젝트 생성
-```yaml
-parent_id: 123
-projects:
-  - name: Website
-    path: website
-    visibility: private
-```
-
-## 🧪 테스트
-
+#### 방법 3: Docker Compose 사용
 ```bash
-# 유닛 테스트
-cd frontend && npm test
-
-# E2E 테스트
-npx playwright test
+docker-compose up
 ```
 
+### 4. 접속
+브라우저에서 http://localhost:3000 접속
+
+### 5. 로그인
+1. GitLab 인스턴스 URL 입력 (예: https://gitlab.com)
+2. Personal Access Token 입력 (필요한 권한: `api`, `read_user`)
+
+## 서비스 관리
+
+### 서비스 상태 확인
+```bash
+./manage.sh status
+# 또는
+./manage-simple.sh status
+```
+
+### 서비스 중지
+```bash
+./manage.sh stop
+# 또는
+./manage-simple.sh stop
+```
+
+### 서비스 재시작
+```bash
+./manage.sh restart
+# 또는
+./manage-simple.sh restart
+```
+
+### 로그 확인
+```bash
+./manage.sh logs
+# 또는
+./manage-simple.sh logs
+```
+
+## 주요 기능 사용법
+
+### GitLab 리소스 관리
+1. **Groups & Projects** 탭 클릭
+2. 트리 뷰에서 그룹/프로젝트 탐색
+3. 우클릭 또는 버튼으로 대량 작업 수행
 
 
-## 🤝 기여하기
+### 시스템 상태 확인
+1. **System Health** 탭 클릭
+2. 실시간 모니터링 정보 확인
 
-[CONTRIBUTING.md](./CONTRIBUTING.md) 참조
+## 프로젝트 구조
 
-## 🐛 문제 해결
+```
+gitlab-bulk-manager/
+├── backend/               # Express.js 백엔드 서버
+│   ├── src/
+│   │   ├── routes/       # API 라우트
+│   │   ├── middleware/   # 미들웨어
+│   │   └── services/     # 비즈니스 로직
+│   └── package.json
+├── frontend/              # React 프론트엔드
+│   ├── src/
+│   │   ├── pages/        # 페이지 컴포넌트
+│   │   ├── components/   # 재사용 컴포넌트
+│   │   └── services/     # API 클라이언트
+│   └── package.json
+├── docker-compose.yml     # Docker 설정
+├── manage.sh             # 서비스 관리 스크립트
+├── manage-simple.sh      # 서비스 관리 스크립트 (색상 없음)
+└── README.md             # 이 파일
+```
 
-### 401 인증 오류
-- GitLab 토큰 권한 확인
-- Backend 서버 실행 확인 (포트 4000)
+## API 엔드포인트
 
-### CORS 오류
-- Frontend가 GitLab API를 직접 호출하는 경우 발생
-- 모든 API 호출은 `/api/gitlab/*` 경로 사용
+### Backend (포트 4000)
+- `/api/auth/*` - 인증 관련
+- `/api/gitlab/*` - GitLab API 프록시
+- `/api/gitlab/bulk/*` - 대량 작업
+- `/api/permissions/overview` - 권한 개요
+- `/api/stats/*` - 통계
 
 
-## 📄 라이선스
+## 문제 해결
 
-MIT License
+### 터미널 색상 코드 문제
+터미널에서 `[0;34m` 같은 코드가 보이는 경우:
+```bash
+# manage-simple.sh 사용
+./manage-simple.sh start
+```
 
-## 🆘 지원
+### 포트 충돌
+포트가 이미 사용 중인 경우:
+```bash
+# 사용 중인 프로세스 확인
+lsof -i:3000
+lsof -i:4000
+lsof -i:5001
 
-- 🐛 [이슈 리포트](https://github.com/gitlab-bulk-manager/gitlab-bulk-manager/issues)
+# 프로세스 종료
+kill -9 <PID>
+```
+
+### 로그인 문제
+- GitLab Personal Access Token에 `api`, `read_user` 권한이 있는지 확인
+- GitLab URL이 올바른지 확인 (https:// 포함)
+
+
+## 기여하기
+
+1. Fork 저장소
+2. Feature 브랜치 생성 (`git checkout -b feature/amazing-feature`)
+3. 커밋 (`git commit -m 'Add some amazing feature'`)
+4. Push (`git push origin feature/amazing-feature`)
+5. Pull Request 생성
+
+## 라이선스
+
+MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
+
+## 지원
+
+문제가 발생하거나 기능 요청이 있으시면 [Issues](https://github.com/your-repo/gitlab-bulk-manager/issues)에 등록해주세요.

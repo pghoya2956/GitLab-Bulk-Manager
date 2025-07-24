@@ -19,7 +19,7 @@ LOG_DIR="logs"
 
 # Print usage
 usage() {
-    echo -e "${BLUE}GitLab Bulk Manager - Management Script${NC}"
+    printf "${BLUE}GitLab Bulk Manager - Management Script${NC}\n"
     echo ""
     echo "Usage: $0 [command]"
     echo ""
@@ -35,12 +35,12 @@ usage() {
 # Check prerequisites
 check_requirements() {
     if ! command -v node &> /dev/null; then
-        echo -e "${RED}❌ Node.js is not installed. Please install Node.js 16+ first.${NC}"
+        printf "${RED}❌ Node.js is not installed. Please install Node.js 16+ first.${NC}"
         exit 1
     fi
 
     if ! command -v npm &> /dev/null; then
-        echo -e "${RED}❌ npm is not installed. Please install npm first.${NC}"
+        printf "${RED}❌ npm is not installed. Please install npm first.${NC}"
         exit 1
     fi
 }
@@ -50,7 +50,7 @@ kill_port() {
     local port=$1
     local pids=$(lsof -ti:$port 2>/dev/null)
     if [ ! -z "$pids" ]; then
-        echo -e "${YELLOW}🔄 Killing existing process on port $port...${NC}"
+        printf "${YELLOW}🔄 Killing existing process on port $port...${NC}"
         kill -9 $pids 2>/dev/null
         sleep 1
     fi
@@ -58,14 +58,14 @@ kill_port() {
 
 # Stop all services
 stop_services() {
-    echo -e "${YELLOW}🛑 Stopping GitLab Bulk Manager...${NC}"
+    printf "${YELLOW}🛑 Stopping GitLab Bulk Manager...${NC}"
     echo ""
 
     # Stop using saved PIDs if available
     if [ -f "$BACKEND_PID_FILE" ]; then
         BACKEND_PID=$(cat $BACKEND_PID_FILE)
         if kill -0 $BACKEND_PID 2>/dev/null; then
-            echo -e "${YELLOW}Stopping backend server (PID: $BACKEND_PID)...${NC}"
+            printf "${YELLOW}Stopping backend server (PID: $BACKEND_PID)...${NC}"
             kill -9 $BACKEND_PID 2>/dev/null
         fi
         rm -f $BACKEND_PID_FILE
@@ -74,11 +74,12 @@ stop_services() {
     if [ -f "$FRONTEND_PID_FILE" ]; then
         FRONTEND_PID=$(cat $FRONTEND_PID_FILE)
         if kill -0 $FRONTEND_PID 2>/dev/null; then
-            echo -e "${YELLOW}Stopping frontend server (PID: $FRONTEND_PID)...${NC}"
+            printf "${YELLOW}Stopping frontend server (PID: $FRONTEND_PID)...${NC}"
             kill -9 $FRONTEND_PID 2>/dev/null
         fi
         rm -f $FRONTEND_PID_FILE
     fi
+
 
     # Also try to kill by port
     kill_port $BACKEND_PORT
@@ -88,17 +89,17 @@ stop_services() {
     pkill -f "node.*backend/src/index.js" 2>/dev/null
     pkill -f "vite.*frontend" 2>/dev/null
 
-    echo -e "${GREEN}✅ All services stopped!${NC}"
+    printf "${GREEN}✅ All services stopped!${NC}"
     echo ""
 }
 
 # Start all services
 start_services() {
-    echo -e "${GREEN}🚀 Starting GitLab Bulk Manager...${NC}"
+    printf "${GREEN}🚀 Starting GitLab Bulk Manager...${NC}"
     echo ""
 
     # Clean up any existing processes first
-    echo -e "${YELLOW}🧹 Cleaning up existing processes...${NC}"
+    printf "${YELLOW}🧹 Cleaning up existing processes...${NC}"
     kill_port $FRONTEND_PORT
     kill_port $BACKEND_PORT
     pkill -f "node.*backend/src/index.js" 2>/dev/null
@@ -106,27 +107,29 @@ start_services() {
 
     # Check if backend dependencies are installed
     if [ ! -d "backend/node_modules" ]; then
-        echo -e "${YELLOW}📦 Installing backend dependencies...${NC}"
+        printf "${YELLOW}📦 Installing backend dependencies...${NC}"
         cd backend && npm install && cd ..
     fi
 
     # Check if frontend dependencies are installed
     if [ ! -d "frontend/node_modules" ]; then
-        echo -e "${YELLOW}📦 Installing frontend dependencies...${NC}"
+        printf "${YELLOW}📦 Installing frontend dependencies...${NC}"
         cd frontend && npm install && cd ..
     fi
 
+
     # Check if backend .env exists
     if [ ! -f "backend/.env" ]; then
-        echo -e "${YELLOW}⚙️  Creating backend .env file...${NC}"
+        printf "${YELLOW}⚙️  Creating backend .env file...${NC}"
         cp backend/.env.example backend/.env 2>/dev/null || true
     fi
+
 
     # Create logs directory
     mkdir -p $LOG_DIR
 
     # Start backend server in background
-    echo -e "${GREEN}🚀 Starting backend server on port $BACKEND_PORT...${NC}"
+    printf "${GREEN}🚀 Starting backend server on port $BACKEND_PORT...${NC}"
     cd backend
     nohup npm start > ../$LOG_DIR/backend.log 2>&1 &
     BACKEND_PID=$!
@@ -136,14 +139,14 @@ start_services() {
     echo $BACKEND_PID > $BACKEND_PID_FILE
 
     # Wait for backend to start
-    echo -e "${YELLOW}⏳ Waiting for backend to start...${NC}"
+    printf "${YELLOW}⏳ Waiting for backend to start...${NC}"
     for i in {1..30}; do
         if curl -s http://localhost:$BACKEND_PORT/health > /dev/null 2>&1; then
-            echo -e "${GREEN}✅ Backend is running on http://localhost:$BACKEND_PORT${NC}"
+            printf "${GREEN}✅ Backend is running on http://localhost:$BACKEND_PORT${NC}"
             break
         fi
         if [ $i -eq 30 ]; then
-            echo -e "${RED}❌ Backend failed to start. Check $LOG_DIR/backend.log${NC}"
+            printf "${RED}❌ Backend failed to start. Check $LOG_DIR/backend.log${NC}"
             exit 1
         fi
         sleep 1
@@ -152,7 +155,7 @@ start_services() {
     echo ""
 
     # Start frontend server in background
-    echo -e "${GREEN}🚀 Starting frontend server on port $FRONTEND_PORT...${NC}"
+    printf "${GREEN}🚀 Starting frontend server on port $FRONTEND_PORT...${NC}"
     cd frontend
     nohup npm run dev > ../$LOG_DIR/frontend.log 2>&1 &
     FRONTEND_PID=$!
@@ -162,14 +165,14 @@ start_services() {
     echo $FRONTEND_PID > $FRONTEND_PID_FILE
 
     # Wait for frontend to start
-    echo -e "${YELLOW}⏳ Waiting for frontend to start...${NC}"
+    printf "${YELLOW}⏳ Waiting for frontend to start...${NC}"
     for i in {1..30}; do
         if curl -s http://localhost:$FRONTEND_PORT > /dev/null 2>&1; then
-            echo -e "${GREEN}✅ Frontend is running on http://localhost:$FRONTEND_PORT${NC}"
+            printf "${GREEN}✅ Frontend is running on http://localhost:$FRONTEND_PORT${NC}"
             break
         fi
         if [ $i -eq 30 ]; then
-            echo -e "${RED}❌ Frontend failed to start. Check $LOG_DIR/frontend.log${NC}"
+            printf "${RED}❌ Frontend failed to start. Check $LOG_DIR/frontend.log${NC}"
             exit 1
         fi
         sleep 1
@@ -177,34 +180,35 @@ start_services() {
     done
     echo ""
 
+
     echo ""
-    echo -e "${GREEN}✅ GitLab Bulk Manager is running!${NC}"
+    printf "${GREEN}✅ GitLab Bulk Manager is running!${NC}"
     echo ""
-    echo -e "🌐 Frontend: ${GREEN}http://localhost:$FRONTEND_PORT${NC}"
-    echo -e "🔧 Backend:  ${GREEN}http://localhost:$BACKEND_PORT${NC}"
-    echo -e "📄 Logs:     ${YELLOW}$LOG_DIR/backend.log${NC} and ${YELLOW}$LOG_DIR/frontend.log${NC}"
+    printf "🌐 Frontend: ${GREEN}http://localhost:$FRONTEND_PORT${NC}"
+    printf "🔧 Backend:  ${GREEN}http://localhost:$BACKEND_PORT${NC}"
+    printf "📄 Logs:     ${YELLOW}$LOG_DIR/backend.log${NC} and ${YELLOW}$LOG_DIR/frontend.log${NC}"
     echo ""
 }
 
 # Show service status
 show_status() {
-    echo -e "${BLUE}GitLab Bulk Manager - Service Status${NC}"
+    printf "${BLUE}GitLab Bulk Manager - Service Status${NC}"
     echo ""
 
     # Check backend
     if [ -f "$BACKEND_PID_FILE" ]; then
         BACKEND_PID=$(cat $BACKEND_PID_FILE)
         if kill -0 $BACKEND_PID 2>/dev/null; then
-            echo -e "🔧 Backend:  ${GREEN}Running${NC} (PID: $BACKEND_PID, Port: $BACKEND_PORT)"
+            printf "🔧 Backend:  ${GREEN}Running${NC} (PID: $BACKEND_PID, Port: $BACKEND_PORT)"
         else
-            echo -e "🔧 Backend:  ${RED}Stopped${NC} (PID file exists but process not running)"
+            printf "🔧 Backend:  ${RED}Stopped${NC} (PID file exists but process not running)"
         fi
     else
         # Check by port
         if lsof -ti:$BACKEND_PORT >/dev/null 2>&1; then
-            echo -e "🔧 Backend:  ${GREEN}Running${NC} (Port: $BACKEND_PORT)"
+            printf "🔧 Backend:  ${GREEN}Running${NC} (Port: $BACKEND_PORT)"
         else
-            echo -e "🔧 Backend:  ${RED}Stopped${NC}"
+            printf "🔧 Backend:  ${RED}Stopped${NC}"
         fi
     fi
 
@@ -212,26 +216,27 @@ show_status() {
     if [ -f "$FRONTEND_PID_FILE" ]; then
         FRONTEND_PID=$(cat $FRONTEND_PID_FILE)
         if kill -0 $FRONTEND_PID 2>/dev/null; then
-            echo -e "🌐 Frontend: ${GREEN}Running${NC} (PID: $FRONTEND_PID, Port: $FRONTEND_PORT)"
+            printf "🌐 Frontend: ${GREEN}Running${NC} (PID: $FRONTEND_PID, Port: $FRONTEND_PORT)"
         else
-            echo -e "🌐 Frontend: ${RED}Stopped${NC} (PID file exists but process not running)"
+            printf "🌐 Frontend: ${RED}Stopped${NC} (PID file exists but process not running)"
         fi
     else
         # Check by port
         if lsof -ti:$FRONTEND_PORT >/dev/null 2>&1; then
-            echo -e "🌐 Frontend: ${GREEN}Running${NC} (Port: $FRONTEND_PORT)"
+            printf "🌐 Frontend: ${GREEN}Running${NC} (Port: $FRONTEND_PORT)"
         else
-            echo -e "🌐 Frontend: ${RED}Stopped${NC}"
+            printf "🌐 Frontend: ${RED}Stopped${NC}"
         fi
     fi
+
 
     echo ""
 }
 
 # Show logs
 show_logs() {
-    echo -e "${BLUE}Following logs from $LOG_DIR/*.log${NC}"
-    echo -e "${YELLOW}Press Ctrl+C to stop${NC}"
+    printf "${BLUE}Following logs from $LOG_DIR/*.log${NC}"
+    printf "${YELLOW}Press Ctrl+C to stop${NC}"
     echo ""
     tail -f $LOG_DIR/*.log
 }

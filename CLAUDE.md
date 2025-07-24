@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **ALWAYS use the provided script to manage the application:**
 
-- **Start servers**: `./manage.sh start` (kills existing processes, starts both servers)
+- **Start servers**: `./manage.sh start` (kills existing processes, starts backend and frontend)
 - **Stop servers**: `./manage.sh stop` (cleanly stops all processes)
 - **Restart servers**: `./manage.sh restart` (stop and start with single command)
 - **Check status**: `./manage.sh status` (shows running status of services)
@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🏗️ Architecture Overview
 
-### Three-Tier Architecture
+### Two-Tier Architecture
 
 ```
 Frontend (React SPA :3000) ← → Backend (Express :4000) ← → GitLab API

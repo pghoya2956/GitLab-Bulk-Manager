@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, HTMLMotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cva, VariantProps } from 'class-variance-authority';
 
 const cardVariants = cva(
@@ -32,13 +32,34 @@ const cardVariants = cva(
 );
 
 export interface CardProps
-  extends HTMLMotionProps<'div'>,
+  extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof cardVariants> {}
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant, padding, hoverable, children, ...props }, ref) => {
-    const content = (
-      <div className={cardVariants({ variant, padding, hoverable, className })} {...props}>
+  ({ className, variant, padding, hoverable, children, style, onClick, ...props }, ref) => {
+    const cardClasses = cardVariants({ variant, padding, hoverable, className });
+
+    if (hoverable) {
+      return (
+        <motion.div
+          ref={ref}
+          className={cardClasses}
+          style={style}
+          onClick={onClick}
+          whileHover={{ scale: 1.02 }}
+          transition={{ duration: 0.2 }}
+        >
+          {/* Glass effect overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+          
+          {/* Content */}
+          <div className="relative z-10">{children}</div>
+        </motion.div>
+      );
+    }
+
+    return (
+      <div ref={ref} className={cardClasses} style={style} onClick={onClick} {...props}>
         {/* Glass effect overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
         
@@ -46,20 +67,6 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
         <div className="relative z-10">{children}</div>
       </div>
     );
-
-    if (hoverable) {
-      return (
-        <motion.div
-          ref={ref}
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.2 }}
-        >
-          {content}
-        </motion.div>
-      );
-    }
-
-    return <div ref={ref}>{content}</div>;
   }
 );
 
