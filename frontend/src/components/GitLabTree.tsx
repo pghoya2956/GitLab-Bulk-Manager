@@ -195,7 +195,11 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       const nodeMap: { [key: string]: TreeNode } = {};
       const rootIds: string[] = [];
       
+      // Note: Groups don't have an archived property in GitLab API
+      // Only projects can be archived
+      
       groups.forEach((group: any) => {
+        
         const nodeId = `group-${group.id}`;
         
         // Find permission data for this group
@@ -268,8 +272,12 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       const newNodes: { [key: string]: TreeNode } = {};
       const childIds: string[] = [];
 
+      // Note: Groups don't have an archived property in GitLab API
+      // Only projects can be archived
+      
       // Process subgroups
       subgroups.forEach((group: any) => {
+        
         const childId = `group-${group.id}`;
         
         // Find permission data for this subgroup
@@ -304,8 +312,13 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
         childIds.push(childId);
       });
 
+      // Filter out archived projects first
+      const activeProjects = projects.filter((project: any) => !project.archived);
+      console.log(`Filtered ${projects.length - activeProjects.length} archived projects from ${projects.length} total projects`);
+      
       // Process projects
-      projects.forEach((project: any) => {
+      activeProjects.forEach((project: any) => {
+        
         const childId = `project-${project.id}`;
         
         // Find permission data for this project

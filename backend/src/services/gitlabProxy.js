@@ -34,6 +34,7 @@ export const gitlabProxy = async (req, res, next) => {
     delete config.headers.authorization;
 
     logger.debug(`Proxying ${req.method} request to ${url}`);
+    logger.debug('Query parameters:', req.query);
 
     // Make the request to GitLab
     const response = await axios(config);

@@ -238,7 +238,13 @@ export const GroupsProjects: React.FC = () => {
       }
       
       setSelectedNode(null);
+      // 현재 펼친 상태를 유지하면서 새로고침
+      const currentExpanded = [...expandedNodes];
       setRefreshTrigger(prev => prev + 1);
+      // 새로고침 후 펼친 상태 복원
+      setTimeout(() => {
+        setExpandedNodes(currentExpanded);
+      }, 100);
     } catch (error) {
       showError((error as any).response?.data?.message || 'Failed to delete');
     }
@@ -276,7 +282,13 @@ export const GroupsProjects: React.FC = () => {
       }
       
       setCheckedNodes([]);
+      // 현재 펼친 상태를 유지하면서 새로고침
+      const currentExpanded = [...expandedNodes];
       setRefreshTrigger(prev => prev + 1);
+      // 새로고침 후 펼친 상태 복원
+      setTimeout(() => {
+        setExpandedNodes(currentExpanded);
+      }, 100);
     } catch (error) {
       showError((error as any).response?.data?.message || 'Failed to delete items');
     }
@@ -675,9 +687,27 @@ export const GroupsProjects: React.FC = () => {
           name: selectedNode.name,
           full_path: selectedNode.full_path,
         } : undefined}
-        onSuccess={() => {
+        onSuccess={(result) => {
           setBulkImportOpen(false);
           setRefreshTrigger(prev => prev + 1);
+          
+          // 생성된 그룹들과 부모 그룹을 자동으로 펼치기
+          if (result) {
+            setTimeout(() => {
+              setExpandedNodes(prev => {
+                const newExpanded = new Set(prev);
+                // 부모 그룹 펼치기
+                if (result.parentGroupId) {
+                  newExpanded.add(result.parentGroupId);
+                }
+                // 생성된 그룹들 펼치기
+                result.createdGroupIds.forEach(id => {
+                  newExpanded.add(id);
+                });
+                return Array.from(newExpanded);
+              });
+            }, 500); // 새로고침 후 트리가 업데이트되기를 기다림
+          }
         }}
       />
 

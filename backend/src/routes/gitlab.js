@@ -8,14 +8,27 @@ const router = express.Router();
 router.get('/groups', gitlabProxy);
 router.get('/groups/:id', gitlabProxy);
 router.get('/groups/:id/subgroups', gitlabProxy);
-router.get('/groups/:id/projects', gitlabProxy);
+router.get('/groups/:id/projects', async (req, res, next) => {
+  // Add archived=false to exclude archived projects
+  if (req.query.archived === undefined) {
+    req.query.archived = false;
+    logger.debug(`Added archived=false to group projects request for group ${req.params.id}`);
+  }
+  return gitlabProxy(req, res, next);
+});
 router.post('/groups', gitlabProxy);
 router.put('/groups/:id', gitlabProxy);
 router.delete('/groups/:id', gitlabProxy);
 router.post('/groups/:id/transfer', gitlabProxy);
 
 // Projects endpoints
-router.get('/projects', gitlabProxy);
+router.get('/projects', async (req, res, next) => {
+  // Add archived=false to exclude archived projects by default
+  if (req.query.archived === undefined) {
+    req.query.archived = false;
+  }
+  return gitlabProxy(req, res, next);
+});
 router.get('/projects/:id', gitlabProxy);
 router.post('/projects', gitlabProxy);
 router.put('/projects/:id', gitlabProxy);

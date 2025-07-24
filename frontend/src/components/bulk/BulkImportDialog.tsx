@@ -13,6 +13,8 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
+  Backdrop,
 } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import CodeIcon from '@mui/icons-material/Code';
@@ -34,7 +36,7 @@ interface BulkImportDialogProps {
     name: string;
     full_path: string;
   };
-  onSuccess?: () => void;
+  onSuccess?: (result?: { parentGroupId?: string; createdGroupIds: string[] }) => void;
 }
 
 interface YamlData {
@@ -74,6 +76,7 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
   const [tab, setTab] = useState(0);
   const [subTab, setSubTab] = useState(0);
   const [generatedYaml, setGeneratedYaml] = useState<YamlData | null>(null);
+  const [loading, setLoading] = useState(false);
   const { showSuccess, showError } = useNotification();
 
   const getSelectedGroupData = () => {
@@ -93,6 +96,7 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
         return;
       }
 
+      setLoading(true);
       const groupId = parseInt(selectedGroup.id.replace('group-', ''));
       console.log('Executing bulk import:', { type, groupId, data });
 
@@ -108,6 +112,9 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
         
         if (response.results?.created && response.results.created.length > 0) {
           showSuccess(`Successfully created ${response.results.created.length} subgroups`);
+        }
+        if (response.results?.skipped && response.results.skipped.length > 0) {
+          showSuccess(`Skipped ${response.results.skipped.length} existing subgroups`);
         }
         if (response.results?.failed && response.results.failed.length > 0) {
           showError(`Failed to create ${response.results.failed.length} subgroups`);
@@ -133,12 +140,20 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
         }
       }
       
+      // 생성된 그룹을 자동으로 펼치기 위해 부모 그룹 ID를 포함
       if (onSuccess) {
-        onSuccess();
+        // 생성된 그룹 ID들 수집
+        const createdGroupIds = response.results?.created?.map((item: any) => `group-${item.id}`) || [];
+        const parentGroupId = selectedGroup?.id;
+        
+        // onSuccess에 생성된 정보 전달
+        onSuccess({ parentGroupId, createdGroupIds });
       }
     } catch (error) {
       console.error('Bulk import error:', error);
       showError(error instanceof Error ? error.message : 'Failed to execute bulk import');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -234,14 +249,14 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
                 type="subgroups" 
                 onExecute={(data) => handleYamlExecute('subgroups', data)}
                 initialYaml={generatedYaml ? JSON.stringify(generatedYaml, null, 2) : undefined}
-                disabled={!selectedGroup}
+                disabled={!selectedGroup || loading}
               />
             )}
             {subTab === 1 && (
               <YamlEditor 
                 type="projects" 
                 onExecute={(data) => handleYamlExecute('projects', data)}
-                disabled={!selectedGroup}
+                disabled={!selectedGroup || loading}
               />
             )}
           </Box>
@@ -288,10 +303,32 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose}>
+        <Button onClick={onClose} disabled={loading}>
           Close
         </Button>
       </DialogActions>
+
+      {/* Loading Backdrop */}
+      <Backdrop
+        sx={{
+          position: 'absolute',
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          color: '#fff',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          borderRadius: 'inherit',
+        }}
+        open={loading}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress color="inherit" size={60} />
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Creating resources...
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Please wait while we create your groups and projects
+          </Typography>
+        </Box>
+      </Backdrop>
     </Dialog>
   );
 };
