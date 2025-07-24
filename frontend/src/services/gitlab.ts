@@ -127,8 +127,8 @@ export const gitlabService = {
     subgroups: Array<{ name: string; path?: string; description?: string }>, 
     defaults?: Partial<GitLabGroup>, 
     options?: Record<string, unknown>
-  ): Promise<{ results: BulkOperationResult }> {
-    return gitLabClient.post<{ results: BulkOperationResult }>('/bulk/subgroups', { parentId, subgroups, defaults, options });
+  ): Promise<{ success: boolean; results: BulkOperationResult; summary: any }> {
+    return gitLabClient.post<{ success: boolean; results: BulkOperationResult; summary: any }>('/bulk/subgroups', { parentId, subgroups, defaults, options });
   },
 
   async bulkCreateProjects(
@@ -136,8 +136,8 @@ export const gitlabService = {
     defaults?: Partial<GitLabProject>, 
     branchProtection?: GitLabProtectedBranch[], 
     ciVariables?: Array<{ key: string; value: string }>
-  ): Promise<{ results: BulkOperationResult }> {
-    return gitLabClient.post<{ results: BulkOperationResult }>('/bulk/projects', { projects, defaults, branchProtection, ciVariables });
+  ): Promise<{ success: boolean; results: BulkOperationResult; summary: any }> {
+    return gitLabClient.post<{ success: boolean; results: BulkOperationResult; summary: any }>('/bulk/projects', { projects, defaults, branchProtection, ciVariables });
   },
 
   async parseYaml(content: string): Promise<{

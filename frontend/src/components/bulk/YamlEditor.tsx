@@ -30,7 +30,7 @@ interface YamlEditorProps {
 
 const YAML_TEMPLATES = {
   subgroups: `# GitLab 서브그룹 생성 설정
-parent_id: 123  # 부모 그룹 ID (필수)
+# 선택한 그룹 아래에 서브그룹이 생성됩니다
 
 defaults:
   visibility: private
@@ -59,46 +59,41 @@ options:
   api_delay: 200`,
 
   projects: `# GitLab 프로젝트 생성 설정
+# 선택한 그룹 아래에 프로젝트가 생성됩니다
+
 defaults:
   visibility: private
   default_branch: main
   initialize_with_readme: true
 
 projects:
-  - group_id: 110  # 그룹 ID (필수)
-    projects:
-      - name: "web-app"
-        description: "웹 애플리케이션"
-        topics: ["frontend", "react"]
-        settings:
-          pages_enabled: true
-          
-      - name: "api-server"
-        description: "REST API 서버"
-        topics: ["backend", "nodejs"]
+  - name: "web-app"
+    description: "웹 애플리케이션"
+    topics: ["frontend", "react"]
+    settings:
+      pages_enabled: true
+      
+  - name: "api-server"
+    description: "REST API 서버"
+    topics: ["backend", "nodejs"]
 
-branch_protection:
+branchProtection:
   default:
     branch: main
-    push_access_level: developer
-    merge_access_level: maintainer
+    push_access_level: 30  # developer
+    merge_access_level: 40  # maintainer
 
-ci_variables:
-  global:
-    - key: "ENVIRONMENT"
-      value: "production"
-      protected: true`
+ciVariables:
+  - key: "ENVIRONMENT"
+    value: "production"
+    protected: true`
 };
 
 export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initialData, initialYaml, parentId, disabled }) => {
   const [yamlContent, setYamlContent] = useState(() => {
     if (initialYaml) {return initialYaml;}
     if (initialData) {return initialData;}
-    const template = YAML_TEMPLATES[type];
-    if (parentId && type === 'subgroups') {
-      return template.replace('parent_id: 123', `parent_id: ${parentId}`);
-    }
-    return template;
+    return YAML_TEMPLATES[type];
   });
   const [parsedData, setParsedData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -132,23 +127,26 @@ export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initial
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    if (onExecute) {
+      // BulkImportDialog에서 처리하도록 위임
+      onExecute(parsedData);
+    } else {
+      // onExecute가 없으면 직접 실행
+      setLoading(true);
+      setError(null);
 
-    try {
-      const endpoint = type === 'subgroups' ? '/api/gitlab/bulk/subgroups' : '/api/gitlab/bulk/projects';
-      const response = await axios.post(endpoint, parsedData);
-      
-      if (response.data.success) {
-        setSuccessMessage(`성공: ${response.data.summary.created}개 생성, ${response.data.summary.skipped}개 건너뜀, ${response.data.summary.failed}개 실패`);
-        if (onExecute) {
-          onExecute(response.data);
+      try {
+        const endpoint = type === 'subgroups' ? '/api/gitlab/bulk/subgroups' : '/api/gitlab/bulk/projects';
+        const response = await axios.post(endpoint, parsedData);
+        
+        if (response.data.success) {
+          setSuccessMessage(`성공: ${response.data.summary.created}개 생성, ${response.data.summary.skipped}개 건너뜀, ${response.data.summary.failed}개 실패`);
         }
+      } catch (err: any) {
+        setError(err.response?.data?.message || '실행 실패');
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || '실행 실패');
-    } finally {
-      setLoading(false);
     }
   };
 

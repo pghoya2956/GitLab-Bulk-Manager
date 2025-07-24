@@ -56,8 +56,11 @@ async function createSubgroupsRecursive(req, groups, parentId, parentPath, {
   skipExisting,
   continueOnError,
 }) {
+  console.log('createSubgroupsRecursive called with:', { parentId, parentPath, groupsCount: groups.length });
+  
   for (const group of groups) {
     results.total++;
+    console.log('Processing group:', { name: group.name, path: group.path, parentId });
 
     try {
       // 기존 그룹 확인
@@ -65,6 +68,7 @@ async function createSubgroupsRecursive(req, groups, parentId, parentPath, {
       if (skipExisting) {
         try {
           const searchPath = parentPath ? `${parentPath}/${group.path}` : group.path;
+          console.log('Checking for existing group:', searchPath);
           existingGroup = await gitlabRequest(req, 'GET', `/groups/${encodeURIComponent(searchPath)}`);
         } catch (error) {
           // Group doesn't exist - proceed with creation
@@ -89,7 +93,9 @@ async function createSubgroupsRecursive(req, groups, parentId, parentPath, {
           description: group.description,
         };
 
+        console.log('Creating group with data:', groupData);
         const createdGroup = await gitlabRequest(req, 'POST', '/groups', groupData);
+        console.log('Group created:', createdGroup);
 
         results.created.push({
           id: createdGroup.id,
@@ -129,6 +135,7 @@ async function createSubgroupsRecursive(req, groups, parentId, parentPath, {
 // 계층적 서브그룹 생성
 router.post('/subgroups', async (req, res) => {
   try {
+    console.log('Bulk subgroups request:', req.body);
     const { parentId, subgroups, defaults = {}, options = {} } = req.body;
 
     if (!parentId || !subgroups) {
@@ -155,14 +162,35 @@ router.post('/subgroups', async (req, res) => {
     const skipExisting = options.skipExisting !== false;
     const continueOnError = options.continueOnError !== false;
 
+    // 부모 그룹 정보 가져오기
+    let parentPath = '';
+    try {
+      const parentGroup = await gitlabRequest(req, 'GET', `/groups/${parentId}`);
+      parentPath = parentGroup.full_path;
+      console.log('Parent group found:', { id: parentId, full_path: parentPath });
+    } catch (error) {
+      console.error('Failed to get parent group:', error.message);
+      return res.status(400).json({ error: 'Invalid parent group ID' });
+    }
+
     // 서브그룹 생성 시작
-    await createSubgroupsRecursive(req, subgroups, parentId, '', {
+    console.log('Creating subgroups with:', {
+      parentId,
+      parentPath,
+      subgroupsCount: subgroups.length,
+      defaultSettings,
+      options: { apiDelay, skipExisting, continueOnError }
+    });
+
+    await createSubgroupsRecursive(req, subgroups, parentId, parentPath, {
       results,
       defaultSettings,
       apiDelay,
       skipExisting,
       continueOnError,
     });
+
+    console.log('Subgroups creation results:', results);
 
     res.json({
       success: true,

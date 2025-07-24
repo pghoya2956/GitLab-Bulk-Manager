@@ -94,6 +94,7 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
       }
 
       const groupId = parseInt(selectedGroup.id.replace('group-', ''));
+      console.log('Executing bulk import:', { type, groupId, data });
 
       if (type === 'subgroups') {
         const response = await gitlabService.bulkCreateSubgroups(
@@ -103,10 +104,12 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
           data.options
         );
         
-        if (response.results.created && response.results.created.length > 0) {
+        console.log('Subgroups response:', response);
+        
+        if (response.results?.created && response.results.created.length > 0) {
           showSuccess(`Successfully created ${response.results.created.length} subgroups`);
         }
-        if (response.results.failed && response.results.failed.length > 0) {
+        if (response.results?.failed && response.results.failed.length > 0) {
           showError(`Failed to create ${response.results.failed.length} subgroups`);
         }
       } else {
@@ -120,10 +123,12 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
           data.ciVariables
         );
         
-        if (response.results.created && response.results.created.length > 0) {
+        console.log('Projects response:', response);
+        
+        if (response.results?.created && response.results.created.length > 0) {
           showSuccess(`Successfully created ${response.results.created.length} projects`);
         }
-        if (response.results.failed && response.results.failed.length > 0) {
+        if (response.results?.failed && response.results.failed.length > 0) {
           showError(`Failed to create ${response.results.failed.length} projects`);
         }
       }
@@ -132,6 +137,7 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
         onSuccess();
       }
     } catch (error) {
+      console.error('Bulk import error:', error);
       showError(error instanceof Error ? error.message : 'Failed to execute bulk import');
     }
   };
