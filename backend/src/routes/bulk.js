@@ -691,6 +691,84 @@ router.post('/settings/access-levels', async (req, res) => {
   }
 });
 
+// Bulk Namespace Move (Transfer)
+router.post('/transfer', async (req, res) => {
+  try {
+    const { items, targetNamespaceId } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+
+    if (!targetNamespaceId) {
+      return res.status(400).json({ error: 'targetNamespaceId is required' });
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      total: items.length,
+    };
+
+    // Verify target namespace exists
+    try {
+      await gitlabRequest(req, 'GET', `/namespaces/${targetNamespaceId}`);
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid target namespace ID' });
+    }
+
+    for (const item of items) {
+      try {
+        if (item.type === 'project') {
+          // Transfer project
+          await gitlabRequest(req, 'PUT', `/projects/${item.id}/transfer`, {
+            namespace: targetNamespaceId
+          });
+        } else if (item.type === 'group') {
+          // Transfer group
+          await gitlabRequest(req, 'POST', `/groups/${item.id}/transfer`, {
+            group_id: targetNamespaceId
+          });
+        } else {
+          throw new Error('Invalid item type. Must be "project" or "group"');
+        }
+
+        results.success.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          newNamespaceId: targetNamespaceId,
+        });
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
+      } catch (error) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: error.response?.data?.message || error.message,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length,
+      },
+    });
+
+  } catch (error) {
+    // Error logged: 'Bulk transfer error:', error);
+    res.status(500).json({
+      error: 'Failed to transfer items',
+      message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
 // Bulk Delete
 router.post('/delete', async (req, res) => {
   try {

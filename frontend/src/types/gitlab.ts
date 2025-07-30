@@ -190,10 +190,13 @@ export interface BulkOperationResult {
   // Properties for bulk create operations
   created?: Array<{ id: number; name: string; path: string }>;
   failed?: Array<{ name: string; error: string }>;
+  skipped?: Array<{ name: string; reason: string }>;
   // Properties for bulk settings operations
   results?: {
     successful: Array<{ id: number; name: string }>;
     failed: Array<{ id: number; name: string; error: string }>;
+    created?: Array<{ id: number; name: string; path: string }>;
+    skipped?: Array<{ name: string; reason: string }>;
   };
 }
 

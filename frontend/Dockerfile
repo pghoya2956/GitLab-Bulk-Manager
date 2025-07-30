@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy source files
 COPY . .
@@ -25,13 +25,10 @@ RUN apk add --no-cache curl
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/build /usr/share/nginx/html
 
-# Create non-root user
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S nginx -u 1001 -G nginx
-
-# Change ownership of nginx directories
+# nginx user already exists in the nginx:alpine image
+# Just change ownership of nginx directories
 RUN chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
     chown -R nginx:nginx /etc/nginx/conf.d && \

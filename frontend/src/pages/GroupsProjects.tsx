@@ -22,6 +22,8 @@ import { ConfirmTransferDialog } from '../components/ConfirmTransferDialog';
 import { ConfirmBulkTransferDialog } from '../components/ConfirmBulkTransferDialog';
 import { BulkImportDialog } from '../components/bulk/BulkImportDialog';
 import { BulkSettingsDialog } from '../components/bulk/BulkSettingsDialog';
+import { BulkDeleteDialog } from '../components/bulk/BulkDeleteDialog';
+import { BulkTransferDialog } from '../components/bulk/BulkTransferDialog';
 import { useNotification } from '../hooks/useNotification';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -33,9 +35,9 @@ import CodeIcon from '@mui/icons-material/Code';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import SettingsIcon from '@mui/icons-material/Settings';
-import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove';
 import UploadIcon from '@mui/icons-material/Upload';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import MoveUpIcon from '@mui/icons-material/MoveUp';
 
 interface TreeNode {
   id: string;
@@ -60,6 +62,8 @@ export const GroupsProjects: React.FC = () => {
   const [showOnlyDeveloperPlus, setShowOnlyDeveloperPlus] = useState(true);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [bulkSettingsOpen, setBulkSettingsOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
   const [bulkMenuAnchor, setBulkMenuAnchor] = useState<null | HTMLElement>(null);
@@ -238,13 +242,7 @@ export const GroupsProjects: React.FC = () => {
       }
       
       setSelectedNode(null);
-      // 현재 펼친 상태를 유지하면서 새로고침
-      const currentExpanded = [...expandedNodes];
       setRefreshTrigger(prev => prev + 1);
-      // 새로고침 후 펼친 상태 복원
-      setTimeout(() => {
-        setExpandedNodes(currentExpanded);
-      }, 100);
     } catch (error) {
       showError((error as any).response?.data?.message || 'Failed to delete');
     }
@@ -252,48 +250,9 @@ export const GroupsProjects: React.FC = () => {
     handleMenuClose();
   };
 
-  const handleBulkDelete = async () => {
-    const selectedItems = checkedNodes
-      .map(id => nodeMap[id])
-      .filter(Boolean);
-
-    if (selectedItems.length === 0) {return;}
-
-    const confirmMessage = `Are you sure you want to delete ${selectedItems.length} items? This action cannot be undone.`;
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    try {
-      const items = selectedItems.map(item => ({
-        id: parseInt(item.id.replace(/^(group|project)-/, '')),
-        name: item.name,
-        type: item.type,
-      }));
-
-      const response = await gitlabService.bulkDelete(items);
-      
-      if (response.results?.successful && response.results.successful.length > 0) {
-        showSuccess(`Successfully deleted ${response.results.successful.length} items`);
-      }
-      if (response.results?.failed && response.results.failed.length > 0) {
-        showError(`Failed to delete ${response.results.failed.length} items`);
-      }
-      
-      setCheckedNodes([]);
-      // 현재 펼친 상태를 유지하면서 새로고침
-      const currentExpanded = [...expandedNodes];
-      setRefreshTrigger(prev => prev + 1);
-      // 새로고침 후 펼친 상태 복원
-      setTimeout(() => {
-        setExpandedNodes(currentExpanded);
-      }, 100);
-    } catch (error) {
-      showError((error as any).response?.data?.message || 'Failed to delete items');
-    }
-    
-    setBulkMenuAnchor(null);
+  const handleBulkDelete = () => {
+    setBulkDeleteOpen(true);
+    handleBulkMenuClose();
   };
 
   const handleBulkMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -620,12 +579,12 @@ export const GroupsProjects: React.FC = () => {
         </MenuItem>
         <MenuItem 
           onClick={() => {
+            setBulkTransferOpen(true);
             handleBulkMenuClose();
-            // Trigger drag mode - items are already selected
           }}
         >
-          <DriveFileMoveIcon sx={{ mr: 1 }} fontSize="small" />
-          Move Selected Items
+          <MoveUpIcon sx={{ mr: 1 }} fontSize="small" />
+          Move to Namespace
         </MenuItem>
         <Divider />
         <MenuItem 
@@ -641,8 +600,29 @@ export const GroupsProjects: React.FC = () => {
       <CreateProjectDialog
         open={createProjectOpen}
         onClose={() => setCreateProjectOpen(false)}
-        onSuccess={() => {
+        onSuccess={(createdProject) => {
           setCreateProjectOpen(false);
+          
+          // Expand parent group if project was created
+          if (createdProject?.namespace?.id) {
+            const parentNodeId = `group-${createdProject.namespace.id}`;
+            setExpandedNodes(prev => {
+              const newExpanded = new Set(prev);
+              newExpanded.add(parentNodeId);
+              return Array.from(newExpanded);
+            });
+            // Select the new project
+            setSelectedNode({
+              id: `project-${createdProject.id}`,
+              name: createdProject.name,
+              type: 'project',
+              path: createdProject.path,
+              full_path: createdProject.path_with_namespace,
+              visibility: createdProject.visibility,
+              namespace: createdProject.namespace
+            });
+          }
+          
           setRefreshTrigger(prev => prev + 1);
         }}
         defaultGroup={getSelectedGroup()}
@@ -651,8 +631,30 @@ export const GroupsProjects: React.FC = () => {
       <CreateGroupDialog
         open={createGroupOpen}
         onClose={() => setCreateGroupOpen(false)}
-        onSuccess={() => {
+        onSuccess={(createdGroup) => {
           setCreateGroupOpen(false);
+          
+          // Expand parent group if subgroup was created
+          if (createdGroup?.parent_id) {
+            const parentNodeId = `group-${createdGroup.parent_id}`;
+            setExpandedNodes(prev => {
+              const newExpanded = new Set(prev);
+              newExpanded.add(parentNodeId);
+              return Array.from(newExpanded);
+            });
+          }
+          
+          // Select the new group
+          setSelectedNode({
+            id: `group-${createdGroup.id}`,
+            name: createdGroup.name,
+            type: 'group',
+            path: createdGroup.path,
+            full_path: createdGroup.full_path,
+            visibility: createdGroup.visibility,
+            parent_id: createdGroup.parent_id
+          });
+          
           setRefreshTrigger(prev => prev + 1);
         }}
         parentGroup={selectedNode?.type === 'group' ? {
@@ -689,25 +691,24 @@ export const GroupsProjects: React.FC = () => {
         } : undefined}
         onSuccess={(result) => {
           setBulkImportOpen(false);
-          setRefreshTrigger(prev => prev + 1);
           
           // 생성된 그룹들과 부모 그룹을 자동으로 펼치기
           if (result) {
-            setTimeout(() => {
-              setExpandedNodes(prev => {
-                const newExpanded = new Set(prev);
-                // 부모 그룹 펼치기
-                if (result.parentGroupId) {
-                  newExpanded.add(result.parentGroupId);
-                }
-                // 생성된 그룹들 펼치기
-                result.createdGroupIds.forEach(id => {
-                  newExpanded.add(id);
-                });
-                return Array.from(newExpanded);
+            setExpandedNodes(prev => {
+              const newExpanded = new Set(prev);
+              // 부모 그룹 펼치기
+              if (result.parentGroupId) {
+                newExpanded.add(result.parentGroupId);
+              }
+              // 생성된 그룹들 펼치기
+              result.createdGroupIds.forEach(id => {
+                newExpanded.add(id);
               });
-            }, 500); // 새로고침 후 트리가 업데이트되기를 기다림
+              return Array.from(newExpanded);
+            });
           }
+          
+          setRefreshTrigger(prev => prev + 1);
         }}
       />
 
@@ -727,6 +728,51 @@ export const GroupsProjects: React.FC = () => {
           setBulkSettingsOpen(false);
           setCheckedNodes([]);
           setRefreshTrigger(prev => prev + 1);
+        }}
+      />
+
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        selectedItems={checkedNodes
+          .map(id => {
+            const node = nodeMap[id];
+            if (!node) return null;
+            return {
+              ...node,
+              id: parseInt(node.id.replace(/^(group|project)-/, '')),
+              type: node.type
+            };
+          })
+          .filter(Boolean) as any}
+        onSuccess={() => {
+          setBulkDeleteOpen(false);
+          setCheckedNodes([]);
+          setRefreshTrigger(prev => prev + 1);
+          showSuccess('선택한 항목이 삭제되었습니다.');
+        }}
+      />
+
+      <BulkTransferDialog
+        open={bulkTransferOpen}
+        onClose={() => setBulkTransferOpen(false)}
+        selectedItems={checkedNodes
+          .map(id => {
+            const node = nodeMap[id];
+            if (!node) return null;
+            return {
+              ...node,
+              id: parseInt(node.id.replace(/^(group|project)-/, '')),
+              type: node.type,
+              path_with_namespace: node.full_path
+            };
+          })
+          .filter(Boolean) as any}
+        onSuccess={() => {
+          setBulkTransferOpen(false);
+          setCheckedNodes([]);
+          setRefreshTrigger(prev => prev + 1);
+          showSuccess('선택한 항목이 이동되었습니다.');
         }}
       />
 

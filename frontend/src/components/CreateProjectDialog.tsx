@@ -24,7 +24,7 @@ interface Group {
 interface CreateProjectDialogProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (project?: any) => void;
   defaultGroup?: Group;
 }
 
@@ -81,8 +81,8 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
         namespace_id: Number(formData.namespace_id),
       };
       
-      await gitlabService.createProject(data);
-      onSuccess();
+      const createdProject = await gitlabService.createProject(data);
+      onSuccess(createdProject);
       handleClose();
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to create project');

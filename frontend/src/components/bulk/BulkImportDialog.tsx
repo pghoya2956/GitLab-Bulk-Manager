@@ -26,7 +26,7 @@ import { HierarchyBuilder } from './HierarchyBuilder';
 import { ImportGroups } from './ImportGroups';
 import { gitlabService } from '../../services/gitlab';
 import { useNotification } from '../../hooks/useNotification';
-import type { GitLabProtectedBranch } from '../../types/gitlab';
+import type { GitLabProtectedBranch, BulkOperationResult } from '../../types/gitlab';
 
 interface BulkImportDialogProps {
   open: boolean;
@@ -100,27 +100,31 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
       const groupId = parseInt(selectedGroup.id.replace('group-', ''));
       console.log('Executing bulk import:', { type, groupId, data });
 
+      let apiResponse;
+      let response: BulkOperationResult;
+      
       if (type === 'subgroups') {
-        const response = await gitlabService.bulkCreateSubgroups(
+        apiResponse = await gitlabService.bulkCreateSubgroups(
           groupId,
           data.subgroups || [],
           data.defaults,
           data.options
         );
+        response = apiResponse.results;
         
         console.log('Subgroups response:', response);
         
-        if (response.results?.created && response.results.created.length > 0) {
-          showSuccess(`Successfully created ${response.results.created.length} subgroups`);
+        if (response.created && response.created.length > 0) {
+          showSuccess(`Successfully created ${response.created.length} subgroups`);
         }
-        if (response.results?.skipped && response.results.skipped.length > 0) {
-          showSuccess(`Skipped ${response.results.skipped.length} existing subgroups`);
+        if (response.skipped && response.skipped.length > 0) {
+          showSuccess(`Skipped ${response.skipped.length} existing subgroups`);
         }
-        if (response.results?.failed && response.results.failed.length > 0) {
-          showError(`Failed to create ${response.results.failed.length} subgroups`);
+        if (response.failed && response.failed.length > 0) {
+          showError(`Failed to create ${response.failed.length} subgroups`);
         }
       } else {
-        const response = await gitlabService.bulkCreateProjects(
+        apiResponse = await gitlabService.bulkCreateProjects(
           [{
             group_id: groupId,
             projects: data.projects || [],
@@ -129,21 +133,22 @@ export const BulkImportDialog: React.FC<BulkImportDialogProps> = ({
           data.branchProtection as GitLabProtectedBranch[] | undefined,
           data.ciVariables
         );
+        response = apiResponse.results;
         
         console.log('Projects response:', response);
         
-        if (response.results?.created && response.results.created.length > 0) {
-          showSuccess(`Successfully created ${response.results.created.length} projects`);
+        if (response.created && response.created.length > 0) {
+          showSuccess(`Successfully created ${response.created.length} projects`);
         }
-        if (response.results?.failed && response.results.failed.length > 0) {
-          showError(`Failed to create ${response.results.failed.length} projects`);
+        if (response.failed && response.failed.length > 0) {
+          showError(`Failed to create ${response.failed.length} projects`);
         }
       }
       
       // 생성된 그룹을 자동으로 펼치기 위해 부모 그룹 ID를 포함
       if (onSuccess) {
         // 생성된 그룹 ID들 수집
-        const createdGroupIds = response.results?.created?.map((item: any) => `group-${item.id}`) || [];
+        const createdGroupIds = response.created?.map((item: any) => `group-${item.id}`) || [];
         const parentGroupId = selectedGroup?.id;
         
         // onSuccess에 생성된 정보 전달

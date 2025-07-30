@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SimpleTreeView } from '@mui/x-tree-view';
 import { TreeItem } from '@mui/x-tree-view';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -130,6 +130,10 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
   const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null);
   const [permissionsData, setPermissionsData] = useState<any>(null);
   const { showError } = useNotification();
+  
+  // Use ref to access latest nodes in callbacks
+  const nodesRef = useRef<{ [key: string]: TreeNode }>({});
+  nodesRef.current = nodes;
 
   // Use controlled expanded state if provided, otherwise use internal state
   const expanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded;
@@ -159,34 +163,55 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
 
   // Load root groups on mount and when refresh triggered
   useEffect(() => {
-    if (refreshTrigger !== undefined && refreshTrigger > 0) {
-      // Partial refresh: reload expanded nodes' children
-      const reloadExpandedNodes = async () => {
-        for (const nodeId of expanded) {
-          const node = nodes[nodeId];
-          if (node && node.type === 'group') {
-            // Clear children to force reload
-            setNodes(prev => ({
-              ...prev,
-              [nodeId]: { ...prev[nodeId], children: undefined }
-            }));
-            await loadChildren(nodeId);
+    loadRootNodes();
+  }, [refreshTrigger]);
+
+  // Auto-expand to show selected node
+  useEffect(() => {
+    if (selectedNodeId && nodes[selectedNodeId]) {
+      const expandToNode = (nodeId: string) => {
+        const nodesToExpand: string[] = [];
+        
+        // Find all parent nodes
+        const findParents = (currentNodeId: string) => {
+          // Check all nodes to find which one has this node as a child
+          for (const [parentId, parentNode] of Object.entries(nodes)) {
+            if (parentNode.children && parentNode.children.includes(currentNodeId)) {
+              nodesToExpand.push(parentId);
+              findParents(parentId); // Recursively find grandparents
+            }
+          }
+        };
+        
+        findParents(nodeId);
+        
+        // Expand all parent nodes if they're not already expanded
+        if (nodesToExpand.length > 0) {
+          const newExpanded = [...new Set([...expanded, ...nodesToExpand])];
+          if (newExpanded.length !== expanded.length) {
+            setExpanded(newExpanded);
+            
+            // Load children for newly expanded nodes
+            nodesToExpand.forEach(parentId => {
+              if (!nodes[parentId].children) {
+                loadChildren(parentId);
+              }
+            });
           }
         }
       };
-      reloadExpandedNodes();
-      // Also reload permissions
-      if (showPermissions) {
-        loadPermissions();
-      }
-    } else {
-      loadRootNodes();
+      
+      expandToNode(selectedNodeId);
     }
-  }, [refreshTrigger]);
+  }, [selectedNodeId, nodes]);
 
   const loadRootNodes = async () => {
     try {
-      setLoading(true);
+      // Don't show loading spinner on refresh to avoid UI flicker
+      if (refreshTrigger === undefined || refreshTrigger === 0) {
+        setLoading(true);
+      }
+      
       const groups = await gitlabService.getGroups({ 
         per_page: 100,
         top_level_only: true 
@@ -194,6 +219,10 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       
       const nodeMap: { [key: string]: TreeNode } = {};
       const rootIds: string[] = [];
+      
+      // Save current state before clearing
+      const previousNodes = { ...nodes };
+      const previousExpanded = [...expanded];
       
       // Note: Groups don't have an archived property in GitLab API
       // Only projects can be archived
@@ -228,6 +257,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           description: group.description,
           parent_id: group.parent_id,
           hasChildren: true, // Assume groups can have children
+          children: previousNodes[nodeId]?.children, // Preserve children if they were loaded
           memberCount: permissionInfo?.member_count,
           userAccess: permissionInfo?.user_access,
         };
@@ -236,8 +266,58 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
         }
       });
       
+      // Clean up expanded list - remove deleted nodes
+      const validExpanded = previousExpanded.filter(nodeId => {
+        // Check if it's a root node
+        if (nodeMap[nodeId]) return true;
+        
+        // Check if it's a child node that might still exist
+        // We'll verify this after loading children
+        return true; // Keep for now, will be cleaned up later
+      });
+      
       setNodes(nodeMap);
       setRootNodes(rootIds);
+      setExpanded(validExpanded);
+      
+      // Reload children for expanded nodes after refresh
+      if (refreshTrigger && refreshTrigger > 0 && validExpanded.length > 0) {
+        // Use a short delay to ensure state has been updated
+        setTimeout(async () => {
+          // First pass: Load direct children of root nodes
+          const expandedRootNodes = validExpanded.filter(id => nodeMap[id]);
+          
+          for (const nodeId of expandedRootNodes) {
+            await loadChildren(nodeId, true);
+          }
+          
+          // Second pass: Recursively load children of expanded nodes
+          const loadExpandedRecursively = async (parentId: string) => {
+            const parent = nodesRef.current[parentId];
+            if (!parent?.children) return;
+            
+            for (const childId of parent.children) {
+              if (validExpanded.includes(childId) && nodesRef.current[childId]?.type === 'group') {
+                await loadChildren(childId, true);
+                await loadExpandedRecursively(childId);
+              }
+            }
+          };
+          
+          // Load all expanded nodes recursively
+          for (const nodeId of expandedRootNodes) {
+            await loadExpandedRecursively(nodeId);
+          }
+          
+          // Final cleanup: Remove any expanded nodes that no longer exist
+          setExpanded(prev => prev.filter(id => nodesRef.current[id]));
+        }, 100);
+      }
+      
+      // Reload permissions if needed
+      if (refreshTrigger && refreshTrigger > 0 && showPermissions) {
+        loadPermissions();
+      }
     } catch (error: any) {
       if (error.response?.status === 401) {
         showError('Please login to view groups and projects');
@@ -250,9 +330,10 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
     }
   };
 
-  const loadChildren = async (nodeId: string) => {
-    const node = nodes[nodeId];
-    if (!node || node.children || node.isLoading) {return;}
+  const loadChildren = async (nodeId: string, forceReload: boolean = false) => {
+    const node = nodesRef.current[nodeId] || nodes[nodeId];
+    if (!node || node.isLoading) {return;}
+    if (!forceReload && node.children && node.children.length > 0) {return;}
 
     try {
       // Mark as loading
@@ -296,6 +377,9 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           permissionInfo = findGroupPermission(permissionsData.groups);
         }
         
+        // Preserve existing children if they exist
+        const existingNode = nodesRef.current[childId];
+        
         newNodes[childId] = {
           id: childId,
           name: group.name,
@@ -306,6 +390,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           description: group.description,
           parent_id: group.parent_id,
           hasChildren: true,
+          children: existingNode?.children, // Preserve existing children
           memberCount: permissionInfo?.member_count,
           userAccess: permissionInfo?.user_access,
         };

@@ -135,6 +135,10 @@ export const gitlabService = {
     return gitLabClient.post<BulkOperationResult>('/bulk/delete', { items });
   },
 
+  async bulkTransfer(items: Array<{ id: number; name: string; type: 'group' | 'project' }>, targetNamespaceId: number): Promise<BulkOperationResult> {
+    return gitLabClient.post<BulkOperationResult>('/bulk/transfer', { items, targetNamespaceId });
+  },
+
   async bulkCreateSubgroups(
     parentId: number, 
     subgroups: Array<{ name: string; path?: string; description?: string }>, 

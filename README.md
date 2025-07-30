@@ -42,7 +42,7 @@ cp .env.example .env
 ```env
 PORT=4000
 SESSION_SECRET=your-secret-key-here
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:3030
 ```
 
 
@@ -62,8 +62,8 @@ npm install
 ```
 
 이 명령어는 자동으로:
-- Backend (포트 4000)
-- Frontend (포트 3000) 
+- Backend (포트 4040)
+- Frontend (포트 3030) 
 를 모두 시작합니다.
 
 #### 방법 2: 개별 실행
@@ -86,7 +86,7 @@ docker-compose up
 ```
 
 ### 4. 접속
-브라우저에서 http://localhost:3000 접속
+브라우저에서 http://localhost:3030 접속
 
 ### 5. 로그인
 1. GitLab 인스턴스 URL 입력 (예: https://gitlab.com)

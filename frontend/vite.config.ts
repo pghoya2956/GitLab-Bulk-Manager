@@ -18,17 +18,17 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 3030,
     hmr: {
       overlay: false
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: 'http://localhost:4050',
         changeOrigin: true,
       },
       '/socket.io': {
-        target: 'http://localhost:4000',
+        target: 'http://localhost:4050',
         ws: true,
       },
     },

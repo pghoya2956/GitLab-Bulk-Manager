@@ -7,12 +7,12 @@ services:
       dockerfile: Dockerfile
     container_name: gitlab-bulk-manager-backend
     ports:
-      - "4000:4000"
+      - "4050:4000"
     environment:
       - NODE_ENV=development
       - PORT=4000
       - SESSION_SECRET=${SESSION_SECRET:-development-secret}
-      - FRONTEND_URL=http://localhost:3000
+      - FRONTEND_URL=http://localhost:3030
       - REDIS_URL=redis://redis:6379
     depends_on:
       - redis
@@ -29,7 +29,7 @@ services:
       dockerfile: Dockerfile
     container_name: gitlab-bulk-manager-frontend
     ports:
-      - "3000:80"
+      - "3030:80"
     depends_on:
       - backend
     volumes:
@@ -43,7 +43,7 @@ services:
     image: redis:7-alpine
     container_name: gitlab-bulk-manager-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis-data:/data
     networks:

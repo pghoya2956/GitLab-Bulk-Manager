@@ -89,7 +89,7 @@ ciVariables:
     protected: true`
 };
 
-export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initialData, initialYaml, parentId, disabled }) => {
+export const YamlEditor: React.FC<YamlEditorProps> = ({ type, onExecute, initialData, initialYaml, disabled }) => {
   const [yamlContent, setYamlContent] = useState(() => {
     if (initialYaml) {return initialYaml;}
     if (initialData) {return initialData;}

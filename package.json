@@ -41,6 +41,7 @@
   "devDependencies": {
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
+    "@playwright/test": "^1.54.1",
     "concurrently": "^8.2.2",
     "husky": "^8.0.0"
   },

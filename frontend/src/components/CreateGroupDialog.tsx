@@ -19,7 +19,7 @@ import { getErrorMessage } from '../utils/errorHandler';
 interface CreateGroupDialogProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (group?: any) => void;
   parentGroup?: { id: number; name: string };
 }
 
@@ -50,9 +50,9 @@ export const CreateGroupDialog: React.FC<CreateGroupDialogProps> = ({
         parent_id: parentGroup?.id,
       };
       
-      await gitlabService.createGroup(data);
+      const createdGroup = await gitlabService.createGroup(data);
       showSuccess(`Group "${formData.name}" created successfully`);
-      onSuccess();
+      onSuccess(createdGroup);
       handleClose();
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
