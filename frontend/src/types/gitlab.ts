@@ -36,6 +36,7 @@ export interface GitLabGroup {
   file_template_project_id: number | null;
   parent_id: number | null;
   created_at: string;
+  marked_for_deletion_on?: string | null;
   statistics?: GitLabGroupStatistics;
 }
 

@@ -228,6 +228,11 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       // Only projects can be archived
       
       groups.forEach((group: any) => {
+        // 삭제 예정인 그룹은 필터링
+        if (group.marked_for_deletion_on) {
+          console.log(`Filtering out group marked for deletion: ${group.name} (${group.id})`);
+          return;
+        }
         
         const nodeId = `group-${group.id}`;
         
@@ -310,7 +315,8 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           }
           
           // Final cleanup: Remove any expanded nodes that no longer exist
-          setExpanded(prev => prev.filter(id => nodesRef.current[id]));
+          const cleanedExpanded = expanded.filter((id: string) => nodesRef.current[id]);
+          setExpanded(cleanedExpanded);
         }, 100);
       }
       
@@ -358,6 +364,11 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       
       // Process subgroups
       subgroups.forEach((group: any) => {
+        // 삭제 예정인 서브그룹도 필터링
+        if (group.marked_for_deletion_on) {
+          console.log(`Filtering out subgroup marked for deletion: ${group.name} (${group.id})`);
+          return;
+        }
         
         const childId = `group-${group.id}`;
         

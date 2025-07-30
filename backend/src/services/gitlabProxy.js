@@ -81,6 +81,13 @@ export const gitlabProxy = async (req, res, next) => {
     if (error.response) {
       // GitLab API returned an error
       logger.error(`GitLab API error: ${error.response.status} - ${error.response.statusText}`);
+      logger.error('Error response data:', JSON.stringify(error.response.data));
+      logger.error('Error request config:', {
+        method: error.config?.method,
+        url: error.config?.url,
+        params: error.config?.params,
+        hasData: !!error.config?.data
+      });
       return res.status(error.response.status).json({
         error: 'GitLab API Error',
         message: error.response.data?.message || error.message,
