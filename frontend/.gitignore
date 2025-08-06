@@ -147,3 +147,7 @@ e2e/videos/
 .env.*
 !.env.example
 !.env.*.example
+
+# Swarm and Claude Flow directories
+.swarm/
+.claude-flow/

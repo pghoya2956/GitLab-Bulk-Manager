@@ -6,8 +6,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import FolderIcon from '@mui/icons-material/Folder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import CodeIcon from '@mui/icons-material/Code';
-import { Box, Typography, Chip, CircularProgress, TextField, InputAdornment, Checkbox } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
+import { Box, Typography, Chip, CircularProgress, Checkbox } from '@mui/material';
 import GroupIcon from '@mui/icons-material/Group';
 import ShieldIcon from '@mui/icons-material/Shield';
 import PublicIcon from '@mui/icons-material/Public';
@@ -35,6 +34,7 @@ interface TreeNode {
   children?: string[]; // Changed to string[] to store child IDs
   hasChildren?: boolean;
   isLoading?: boolean;
+  markedForDeletion?: boolean; // Added for deletion status
   // Permission fields
   memberCount?: number;
   userAccess?: {
@@ -55,6 +55,8 @@ interface GitLabTreeProps {
   refreshTrigger?: number;
   showOnlyDeveloperPlus?: boolean;
   showPermissions?: boolean;
+  multiSelect?: boolean;
+  searchTerm?: string;
 }
 
 // Helper function to get access level color
@@ -120,12 +122,13 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
   refreshTrigger,
   showOnlyDeveloperPlus = false,
   showPermissions = true,
+  multiSelect = false,
+  searchTerm = '',
 }) => {
   const [nodes, setNodes] = useState<{ [key: string]: TreeNode }>({});
   const [rootNodes, setRootNodes] = useState<string[]>([]);
   const [internalExpanded, setInternalExpanded] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [draggedNode, setDraggedNode] = useState<TreeNode | null>(null);
   const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null);
   const [permissionsData, setPermissionsData] = useState<any>(null);
@@ -228,12 +231,6 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       // Only projects can be archived
       
       groups.forEach((group: any) => {
-        // 삭제 예정인 그룹은 필터링
-        if (group.marked_for_deletion_on) {
-          console.log(`Filtering out group marked for deletion: ${group.name} (${group.id})`);
-          return;
-        }
-        
         const nodeId = `group-${group.id}`;
         
         // Find permission data for this group
@@ -265,6 +262,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           children: previousNodes[nodeId]?.children, // Preserve children if they were loaded
           memberCount: permissionInfo?.member_count,
           userAccess: permissionInfo?.user_access,
+          markedForDeletion: group.marked_for_deletion_on ? true : false, // 삭제 예정 표시
         };
         if (!group.parent_id) {
           rootIds.push(nodeId);
@@ -487,10 +485,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
     const node = nodes[nodeId];
     if (!node) {return;}
 
-    // Always select the node first
-    onSelect(node);
-    
-    // For groups, toggle expansion on click
+    // For groups: toggle expansion
     if (node.type === 'group') {
       const isCurrentlyExpanded = expanded.includes(nodeId);
       const newExpanded = isCurrentlyExpanded
@@ -504,6 +499,20 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
         loadChildren(nodeId);
       }
     }
+    // For projects: toggle checkbox selection
+    else if (node.type === 'project' && onCheckedNodesChange) {
+      const isChecked = checkedNodes.includes(nodeId);
+      let newCheckedNodes: string[] = [...checkedNodes];
+      
+      if (isChecked) {
+        newCheckedNodes = newCheckedNodes.filter(id => id !== nodeId);
+      } else {
+        newCheckedNodes.push(nodeId);
+      }
+      
+      const checkedNodeObjects = newCheckedNodes.map(id => nodes[id]).filter(Boolean);
+      onCheckedNodesChange(newCheckedNodes, checkedNodeObjects);
+    }
   };
 
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>, nodeId: string) => {
@@ -511,12 +520,42 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
     if (!onCheckedNodesChange) {return;}
 
     const isChecked = event.target.checked;
-    let newCheckedNodes: string[];
+    const node = nodes[nodeId];
+    if (!node) return;
+    
+    let newCheckedNodes: string[] = [...checkedNodes];
 
     if (isChecked) {
-      newCheckedNodes = [...checkedNodes, nodeId];
+      // Add the node itself
+      if (!newCheckedNodes.includes(nodeId)) {
+        newCheckedNodes.push(nodeId);
+      }
+      
+      // If it's a group, add all its children recursively
+      if (node.type === 'group' && node.children) {
+        const addChildrenRecursively = (childIds: string[]) => {
+          childIds.forEach(childId => {
+            if (!newCheckedNodes.includes(childId)) {
+              newCheckedNodes.push(childId);
+            }
+            const childNode = nodes[childId];
+            if (childNode && childNode.type === 'group' && childNode.children) {
+              addChildrenRecursively(childNode.children);
+            }
+          });
+        };
+        addChildrenRecursively(node.children);
+      }
     } else {
-      newCheckedNodes = checkedNodes.filter(id => id !== nodeId);
+      // Remove the node and all its children
+      const removeNodeAndChildren = (targetNodeId: string) => {
+        newCheckedNodes = newCheckedNodes.filter(id => id !== targetNodeId);
+        const targetNode = nodes[targetNodeId];
+        if (targetNode && targetNode.type === 'group' && targetNode.children) {
+          targetNode.children.forEach(childId => removeNodeAndChildren(childId));
+        }
+      };
+      removeNodeAndChildren(nodeId);
     }
 
     // Pass node information along with IDs
@@ -639,6 +678,7 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
                 onChange={(e) => handleCheckboxChange(e, nodeId)}
                 onClick={(e) => e.stopPropagation()}
                 sx={{ p: 0.5, mr: 0.5 }}
+                inputProps={{ 'aria-label': `Select ${node.name}` }}
               />
             )}
 
@@ -667,10 +707,26 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
                 flexGrow: 1,
                 fontWeight: selectedNodeId === nodeId ? 'bold' : 'normal',
                 userSelect: 'none',
+                opacity: node.markedForDeletion ? 0.5 : 1,
+                textDecoration: node.markedForDeletion ? 'line-through' : 'none',
               }}
             >
               {node.name}
             </Typography>
+            
+            {/* Deletion Pending Badge */}
+            {node.markedForDeletion && (
+              <Chip 
+                label="삭제 예정" 
+                size="small" 
+                color="error"
+                sx={{ 
+                  ml: 1,
+                  height: 20,
+                  fontSize: '0.75rem',
+                }} 
+              />
+            )}
             
             {/* Children Count for Groups */}
             {node.type === 'group' && node.children && node.children.length > 0 && (
@@ -767,10 +823,10 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
     );
   };
 
-  const filteredRootNodes = searchQuery
+  const filteredRootNodes = searchTerm
     ? rootNodes.filter(nodeId => {
         const node = nodes[nodeId];
-        return node && node.name.toLowerCase().includes(searchQuery.toLowerCase());
+        return node && node.name.toLowerCase().includes(searchTerm.toLowerCase());
       })
     : rootNodes;
 
@@ -783,44 +839,29 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <TextField
-          fullWidth
-          size="small"
-          placeholder="Search groups and projects..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Box>
-      
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
-        <SimpleTreeView
-          expandedItems={expanded}
-          selectedItems={selectedNodeId || ''}
-          onExpandedItemsChange={handleToggle}
-          onSelectedItemsChange={(event, itemIds) => handleSelect(event, itemIds || '')}
-          sx={{ 
-            flexGrow: 1, 
-            maxWidth: '100%',
-            '& .MuiTreeItem-content': {
-              padding: 0,
-            },
-            '& .MuiTreeItem-iconContainer': {
-              display: 'none', // Hide default expand icons as we're using custom ones
-            },
-          }}
-        >
-          {filteredRootNodes.map(nodeId => renderTree(nodeId))}
-        </SimpleTreeView>
-      </Box>
+    <Box sx={{ height: '100%', overflow: 'auto' }}>
+      <SimpleTreeView
+        expandedItems={expanded}
+        selectedItems={selectedNodeId || ''}
+        onExpandedItemsChange={handleToggle}
+        onSelectedItemsChange={(event, itemIds) => handleSelect(event, itemIds || '')}
+        sx={{ 
+          flexGrow: 1, 
+          maxWidth: '100%',
+          '& .MuiTreeItem-content': {
+            padding: 0,
+          },
+          '& .MuiTreeItem-iconContainer': {
+            display: 'none', // Hide default expand icons as we're using custom ones
+          },
+        }}
+      >
+        {filteredRootNodes.map((nodeId, index) => (
+          <React.Fragment key={`tree-${nodeId}-${index}`}>
+            {renderTree(nodeId)}
+          </React.Fragment>
+        ))}
+      </SimpleTreeView>
     </Box>
   );
 };

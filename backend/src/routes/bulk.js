@@ -722,7 +722,7 @@ router.post('/transfer', async (req, res) => {
         if (item.type === 'project') {
           // Transfer project
           await gitlabRequest(req, 'PUT', `/projects/${item.id}/transfer`, {
-            namespace: targetNamespaceId
+            namespace_id: targetNamespaceId
           });
         } else if (item.type === 'group') {
           // Transfer group
@@ -765,6 +765,207 @@ router.post('/transfer', async (req, res) => {
     res.status(500).json({
       error: 'Failed to transfer items',
       message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
+// Bulk Archive
+router.post('/archive', async (req, res) => {
+  try {
+    const { items } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      total: items.length
+    };
+
+    for (const item of items) {
+      if (item.type !== 'project') {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: 'Only projects can be archived'
+        });
+        continue;
+      }
+
+      try {
+        await gitlabRequest(req, 'PUT', `/projects/${item.id}`, { archived: true });
+        results.success.push({
+          id: item.id,
+          name: item.name,
+          type: item.type
+        });
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
+      } catch (error) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: error.response?.data?.message || error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to archive items',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Bulk Unarchive
+router.post('/unarchive', async (req, res) => {
+  try {
+    const { items } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      total: items.length
+    };
+
+    for (const item of items) {
+      if (item.type !== 'project') {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: 'Only projects can be unarchived'
+        });
+        continue;
+      }
+
+      try {
+        await gitlabRequest(req, 'PUT', `/projects/${item.id}`, { archived: false });
+        results.success.push({
+          id: item.id,
+          name: item.name,
+          type: item.type
+        });
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
+      } catch (error) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: error.response?.data?.message || error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to unarchive items',
+      message: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Bulk Clone
+router.post('/clone', async (req, res) => {
+  try {
+    const { items, suffix = '_copy' } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      total: items.length
+    };
+
+    for (const item of items) {
+      try {
+        if (item.type === 'project') {
+          const project = await gitlabRequest(req, 'GET', `/projects/${item.id}`);
+          const newProject = await gitlabRequest(req, 'POST', '/projects', {
+            name: project.name + suffix,
+            path: project.path + suffix.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+            namespace_id: project.namespace.id,
+            visibility: project.visibility,
+            description: project.description
+          });
+          results.success.push({
+            id: newProject.id,
+            name: newProject.name,
+            type: 'project',
+            original_id: item.id
+          });
+        } else {
+          const group = await gitlabRequest(req, 'GET', `/groups/${item.id}`);
+          const newGroup = await gitlabRequest(req, 'POST', '/groups', {
+            name: group.name + suffix,
+            path: group.path + suffix.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+            parent_id: group.parent_id,
+            visibility: group.visibility,
+            description: group.description
+          });
+          results.success.push({
+            id: newGroup.id,
+            name: newGroup.name,
+            type: 'group',
+            original_id: item.id
+          });
+        }
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
+      } catch (error) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: error.response?.data?.message || error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to clone items',
+      message: error.response?.data?.message || error.message
     });
   }
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -35,6 +35,7 @@ interface BulkSettingsDialogProps {
     type: 'group' | 'project';
     full_path: string;
   }>;
+  settingType?: 'visibility' | 'permissions' | 'protected' | 'push-rules' | null;
   onSuccess?: () => void;
 }
 
@@ -66,12 +67,27 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
   open,
   onClose,
   selectedItems,
+  settingType,
   onSuccess,
 }) => {
-  const [tab, setTab] = useState(0);
+  const getInitialTab = () => {
+    switch (settingType) {
+      case 'visibility': return 0;
+      case 'permissions': return 3;
+      case 'protected': return 1;
+      case 'push-rules': return 2;
+      default: return 0;
+    }
+  };
+  
+  const [tab, setTab] = useState(getInitialTab());
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<BulkOperationResults | null>(null);
   const { showSuccess, showError } = useNotification();
+  
+  useEffect(() => {
+    setTab(getInitialTab());
+  }, [settingType]);
 
   const projects = selectedItems.filter(item => item.type === 'project');
   const groups = selectedItems.filter(item => item.type === 'group');

@@ -16,6 +16,9 @@ import bulkRoutes from './routes/bulk.js';
 import statsRoutes from './routes/stats.js';
 import permissionsRoutes from './routes/permissions.js';
 import docsRoutes from './routes/docs.js';
+import membersRoutes from './routes/members.js';
+import cicdRoutes from './routes/cicd.js';
+import issuesRoutes from './routes/issues.js';
 import { authenticateToken } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { setupWebSocket } from './services/websocket.js';
@@ -54,6 +57,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/docs', docsRoutes); // Documentation doesn't require auth
 app.use('/api/stats', authenticateToken, statsRoutes);
 app.use('/api/permissions', authenticateToken, permissionsRoutes);
+app.use('/api/members', authenticateToken, membersRoutes);
+app.use('/api/cicd', authenticateToken, cicdRoutes);
+app.use('/api/issues', authenticateToken, issuesRoutes);
 app.use('/api/gitlab/bulk', authenticateToken, bulkRoutes);
 app.use('/api/gitlab', authenticateToken, gitlabRoutes);
 
@@ -78,7 +84,7 @@ app.use(errorHandler);
 setupWebSocket(io);
 
 // Start server
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4050;
 
 httpServer.listen(PORT, () => {
   logger.info(`Backend server running on port ${PORT}`);

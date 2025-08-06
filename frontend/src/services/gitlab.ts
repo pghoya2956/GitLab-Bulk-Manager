@@ -139,6 +139,18 @@ export const gitlabService = {
     return gitLabClient.post<BulkOperationResult>('/bulk/transfer', { items, targetNamespaceId });
   },
 
+  async bulkArchive(items: Array<{ id: number; name: string; type: 'group' | 'project' }>): Promise<BulkOperationResult> {
+    return gitLabClient.post<BulkOperationResult>('/bulk/archive', { items });
+  },
+
+  async bulkUnarchive(items: Array<{ id: number; name: string; type: 'group' | 'project' }>): Promise<BulkOperationResult> {
+    return gitLabClient.post<BulkOperationResult>('/bulk/unarchive', { items });
+  },
+
+  async bulkClone(items: Array<{ id: number; name: string; type: 'group' | 'project' }>, suffix?: string): Promise<BulkOperationResult> {
+    return gitLabClient.post<BulkOperationResult>('/bulk/clone', { items, suffix });
+  },
+
   async bulkCreateSubgroups(
     parentId: number, 
     subgroups: Array<{ name: string; path?: string; description?: string }>, 

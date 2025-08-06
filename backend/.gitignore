@@ -125,6 +125,10 @@ temp/
 # Session store files
 sessions/
 
+# Swarm and Claude Flow directories
+.swarm/
+.claude-flow/
+
 # Uploaded files
 uploads/
 !uploads/.gitkeep

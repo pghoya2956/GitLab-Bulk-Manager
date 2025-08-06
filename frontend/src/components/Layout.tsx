@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, AppBar, Toolbar, Typography, Container, Button, IconButton, Menu, MenuItem } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem } from '@mui/material';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import axios from 'axios';
@@ -39,9 +39,9 @@ export const Layout: React.FC = () => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             GitLab Bulk Manager
           </Typography>
-          <Button color="inherit" onClick={() => navigate('/groups-projects')}>Groups & Projects</Button>
-          <Button color="inherit" onClick={() => navigate('/system-health')}>System Health</Button>
-          <Button color="inherit" onClick={() => navigate('/docs')}>Documentation</Button>
+          <Button color="inherit" onClick={() => navigate('/bulk-actions')} sx={{ fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.1)' }}>⚡ Bulk Actions</Button>
+          <Button color="inherit" onClick={() => navigate('/system-health')}>시스템 상태</Button>
+          <Button color="inherit" onClick={() => navigate('/docs')}>문서</Button>
           <NotificationCenter />
           <IconButton
             size="large"
@@ -60,9 +60,9 @@ export const Layout: React.FC = () => {
           </Menu>
         </Toolbar>
       </AppBar>
-      <Container component="main" sx={{ mt: 4, mb: 4, flex: 1 }}>
+      <Box component="main" sx={{ flex: 1 }}>
         <Outlet />
-      </Container>
+      </Box>
     </Box>
   );
 };

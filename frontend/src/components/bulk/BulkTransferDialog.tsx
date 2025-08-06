@@ -80,13 +80,23 @@ export function BulkTransferDialog({ open, onClose, selectedItems, onSuccess }: 
     setResult(null);
 
     try {
-      const items = selectedItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        type: item.type
-      }));
+      const items = selectedItems.map(item => {
+        // Extract numeric ID from string ID like 'project-123' or 'group-456'
+        let numericId = item.id;
+        if (typeof item.id === 'string' && item.id.includes('-')) {
+          const parts = item.id.split('-');
+          numericId = parseInt(parts[parts.length - 1]);
+        }
+        return {
+          id: numericId,
+          name: item.name,
+          type: item.type
+        };
+      });
 
       const response = await gitlabService.bulkTransfer(items, selectedNamespace.id);
+      
+      console.log('Transfer response:', response); // Debug log
       
       setResult({
         success: (response as any).success || [],
@@ -95,7 +105,7 @@ export function BulkTransferDialog({ open, onClose, selectedItems, onSuccess }: 
       });
 
       if ((response as any).success?.length > 0) {
-        onSuccess();
+        onSuccess((response as any)); // Pass the response data to onSuccess
       }
     } catch (error: any) {
       setResult({
