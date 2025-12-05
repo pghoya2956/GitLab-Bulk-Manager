@@ -47,6 +47,7 @@ import { BulkSettingsDialog } from '../components/bulk/BulkSettingsDialog';
 import { BulkMembersDialog } from '../components/bulk/BulkMembersDialog';
 import { BulkCICDDialog } from '../components/bulk/BulkCICDDialog';
 import { BulkIssuesDialog } from '../components/bulk/BulkIssuesDialog';
+import { BulkProtectionDialog } from '../components/bulk/BulkProtectionDialog';
 import { BulkActionCards } from '../components/BulkActionCards';
 import { ActionHistorySidebar } from '../components/ActionHistorySidebar';
 import ProgressDialog from '../components/ProgressDialog';
@@ -79,9 +80,6 @@ const BulkActionsCenterRedux: React.FC = () => {
   const {
     activeOperations,
     currentOperation,
-    startOperation,
-    completeOperation,
-    failOperation,
   } = useBulkOperations();
 
   const { loading: dataLoading, error: dataError } = useGitLabData();
@@ -98,6 +96,7 @@ const BulkActionsCenterRedux: React.FC = () => {
     members: false,
     cicd: false,
     issues: false,
+    protection: false,
   });
 
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
@@ -180,6 +179,9 @@ const BulkActionsCenterRedux: React.FC = () => {
         break;
       case 'issues':
         if (selectedCount > 0) openDialog('issues');
+        break;
+      case 'protection':
+        if (selectedCount > 0) openDialog('protection');
         break;
       default:
         console.log('Action not implemented:', actionId);
@@ -524,6 +526,16 @@ const BulkActionsCenterRedux: React.FC = () => {
         selectedItems={selectedItems as any[]}
         onSuccess={() => {
           closeDialog('issues');
+          fetchData();
+        }}
+      />
+
+      <BulkProtectionDialog
+        open={dialogs.protection}
+        onClose={() => closeDialog('protection')}
+        selectedItems={selectedItems as any[]}
+        onSuccess={() => {
+          closeDialog('protection');
           fetchData();
         }}
       />

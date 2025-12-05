@@ -156,8 +156,44 @@ export const gitlabService = {
     return gitLabClient.post<BulkOperationResult>('/bulk/settings/push-rules', { projectIds, rules });
   },
 
-  async bulkSetProtectedBranches(projectIds: number[], branches: GitLabProtectedBranch[]): Promise<BulkOperationResult> {
-    return gitLabClient.post<BulkOperationResult>('/bulk/settings/protected-branches', { projectIds, branches });
+  async bulkSetProtectedBranches(
+    projectIds: number[],
+    branches: GitLabProtectedBranch[] | Array<{
+      name: string;
+      push_access_level: number;
+      merge_access_level: number;
+      unprotect_access_level?: number;
+      allow_force_push?: boolean;
+      code_owner_approval_required?: boolean;
+    }>,
+    deleteExisting: boolean = false
+  ): Promise<BulkOperationResult> {
+    return gitLabClient.post<BulkOperationResult>('/bulk/settings/protected-branches', {
+      projectIds,
+      branches: {
+        deleteExisting,
+        rules: branches
+      }
+    });
+  },
+
+  async bulkSetApprovalRules(
+    projectIds: number[],
+    rules: Array<{
+      name: string;
+      approvals_required: number;
+      rule_type?: 'any_approver' | 'regular';
+      applies_to_all_protected_branches?: boolean;
+      user_ids?: number[];
+      group_ids?: number[];
+    }>,
+    deleteExisting: boolean = false
+  ): Promise<BulkOperationResult> {
+    return gitLabClient.post<BulkOperationResult>('/bulk/settings/approval-rules', {
+      projectIds,
+      rules,
+      deleteExisting
+    });
   },
 
   async bulkSetVisibility(items: Array<{ id: number; name: string; type: 'group' | 'project' }>, visibility: string): Promise<BulkOperationResult> {

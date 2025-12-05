@@ -1054,6 +1054,166 @@ router.post('/clone', async (req, res) => {
   }
 });
 
+// Bulk Approval Rules 설정
+router.post('/settings/approval-rules', async (req, res) => {
+  try {
+    const { projectIds, rules, deleteExisting = false } = req.body;
+
+    if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
+      return res.status(400).json({ error: 'projectIds array is required' });
+    }
+
+    if (!rules || !Array.isArray(rules) || rules.length === 0) {
+      return res.status(400).json({ error: 'rules array is required' });
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      total: projectIds.length,
+    };
+
+    for (const projectId of projectIds) {
+      const numericId = extractNumericId(projectId);
+      if (!numericId) {
+        results.failed.push({
+          projectId,
+          error: 'Invalid project ID',
+        });
+        continue;
+      }
+
+      try {
+        // 기존 규칙 삭제 (옵션)
+        if (deleteExisting) {
+          try {
+            const existingRules = await gitlabRequest(req, 'GET', `/projects/${numericId}/approval_rules`);
+            for (const rule of existingRules) {
+              // system rules (report_approver, code_owner) cannot be deleted
+              if (rule.rule_type !== 'report_approver' && rule.rule_type !== 'code_owner') {
+                await gitlabRequest(req, 'DELETE', `/projects/${numericId}/approval_rules/${rule.id}`);
+                await delay(100);
+              }
+            }
+          } catch (err) {
+            console.log(`[ApprovalRules] Failed to delete existing rules for project ${numericId}:`, err.message);
+          }
+        }
+
+        // 새 규칙 생성
+        for (const rule of rules) {
+          const ruleData = {
+            name: rule.name,
+            approvals_required: rule.approvals_required || 1,
+            rule_type: rule.rule_type || 'regular',
+          };
+
+          // 선택적 필드 추가
+          if (rule.user_ids && rule.user_ids.length > 0) {
+            ruleData.user_ids = rule.user_ids;
+          }
+          if (rule.group_ids && rule.group_ids.length > 0) {
+            ruleData.group_ids = rule.group_ids;
+          }
+          if (rule.applies_to_all_protected_branches !== undefined) {
+            ruleData.applies_to_all_protected_branches = rule.applies_to_all_protected_branches;
+          }
+          if (rule.protected_branch_ids && rule.protected_branch_ids.length > 0) {
+            ruleData.protected_branch_ids = rule.protected_branch_ids;
+          }
+
+          await gitlabRequest(req, 'POST', `/projects/${numericId}/approval_rules`, ruleData);
+          await delay(100);
+        }
+
+        results.success.push(numericId);
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
+      } catch (error) {
+        results.failed.push({
+          projectId: numericId,
+          error: error.response?.data?.message || error.message,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length,
+      },
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to set approval rules',
+      message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
+// Get project approval rules
+router.get('/project/:projectId/approval-rules', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const numericId = extractNumericId(projectId);
+
+    if (!numericId) {
+      return res.status(400).json({ error: 'Invalid project ID' });
+    }
+
+    const rules = await gitlabRequest(req, 'GET', `/projects/${numericId}/approval_rules`);
+    res.json(rules);
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get approval rules',
+      message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
+// Get project protected branches
+router.get('/project/:projectId/protected-branches', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const numericId = extractNumericId(projectId);
+
+    if (!numericId) {
+      return res.status(400).json({ error: 'Invalid project ID' });
+    }
+
+    const branches = await gitlabRequest(req, 'GET', `/projects/${numericId}/protected_branches`);
+    res.json(branches);
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get protected branches',
+      message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
+// Get project branches (for selection)
+router.get('/project/:projectId/branches', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const numericId = extractNumericId(projectId);
+
+    if (!numericId) {
+      return res.status(400).json({ error: 'Invalid project ID' });
+    }
+
+    const branches = await gitlabRequest(req, 'GET', `/projects/${numericId}/repository/branches?per_page=100`);
+    res.json(branches);
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get branches',
+      message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
 // Bulk Delete
 router.post('/delete', async (req, res) => {
   try {

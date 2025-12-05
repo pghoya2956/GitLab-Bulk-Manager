@@ -127,8 +127,8 @@ export const ACTION_CARDS: ActionCard[] = [
     icon: <ShieldIcon />,
     color: '#FF5722',
     category: 'settings',
-    description: '브랜치/태그 보호',
-    implemented: false,
+    description: '브랜치 보호/MR 승인 규칙',
+    implemented: true,
   },
   {
     id: 'cicd',
