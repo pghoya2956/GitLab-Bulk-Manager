@@ -1,37 +1,32 @@
+/**
+ * BulkTransferDialog - 순차 처리 버전
+ * 항목별 실시간 진행률 표시
+ */
+
 import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Alert,
-  LinearProgress,
-  Box,
-  Chip,
-  Autocomplete,
-  TextField,
-} from '@mui/material';
-import { FolderOpen, Assignment, CheckCircle, Error, MoveUp } from '@mui/icons-material';
-import { gitlabService } from '../../services/gitlab';
+import { Alert, Typography, Box, Autocomplete, TextField } from '@mui/material';
+import { MoveUp } from '@mui/icons-material';
 import type { GitLabGroup, GitLabProject } from '../../types/gitlab';
+
+// Base Components
+import { BaseBulkDialog } from '../common/BaseBulkDialog';
+import { BulkItemList } from '../common/BulkItemList';
+import { BulkProgressDialog } from '../common/BulkProgressDialog';
+import { DialogActionButtons } from '../common/BulkActionButtons';
+
+// Hooks
+import { useSequentialBulkOperation } from '../../hooks/useSequentialBulkOperation';
+import { useGroups } from '../../hooks/useGitLabData';
+import { useHistory } from '../../store/hooks';
+import { gitlabService } from '../../services/gitlab';
+import { IdConverter } from '../../utils/idConverter';
 
 interface BulkTransferDialogProps {
   open: boolean;
   onClose: () => void;
-  selectedItems: Array<(GitLabGroup | GitLabProject) & { type: 'group' | 'project' }>;
-  onSuccess: () => void;
-}
-
-interface TransferResult {
-  success: Array<{ id: number; name: string; type: 'group' | 'project'; newNamespaceId: number }>;
-  failed: Array<{ id: number; name: string; type: 'group' | 'project'; error: string }>;
-  total: number;
+  selectedItems: Array<(GitLabGroup | GitLabProject) & { type: 'group' | 'project'; full_path?: string }>;
+  targetNamespace?: { id: string | number; name?: string; full_path?: string; path?: string };
+  onSuccess?: (result?: unknown) => void;
 }
 
 interface Namespace {
@@ -41,269 +36,183 @@ interface Namespace {
   kind: string;
 }
 
-export function BulkTransferDialog({ open, onClose, selectedItems, onSuccess }: BulkTransferDialogProps) {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<TransferResult | null>(null);
-  const [namespaces, setNamespaces] = useState<Namespace[]>([]);
+export function BulkTransferDialog({
+  open,
+  onClose,
+  selectedItems,
+  targetNamespace,
+  onSuccess,
+}: BulkTransferDialogProps) {
   const [selectedNamespace, setSelectedNamespace] = useState<Namespace | null>(null);
-  const [loadingNamespaces, setLoadingNamespaces] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
 
+  // Redux hooks
+  const { addHistoryAction } = useHistory();
+
+  // 순차 처리 훅
+  const sequentialOp = useSequentialBulkOperation({
+    delayBetweenItems: 500,
+    onComplete: (result) => {
+      // Add to history
+      addHistoryAction({
+        type: 'transfer',
+        description: `Transferred ${result.success.length} items to ${selectedNamespace?.full_path}`,
+        items: selectedItems,
+        metadata: { targetNamespace: selectedNamespace },
+        timestamp: new Date().toISOString(),
+        undoable: false,
+      });
+
+      if (onSuccess) {
+        onSuccess(result);
+      }
+    },
+  });
+
+  const { data: groups, loading: loadingNamespaces } = useGroups({
+    cache: true,
+    ttl: 10 * 60 * 1000
+  });
+
+  // 네임스페이스 목록 준비
+  const namespaces: Namespace[] = (groups || []).map(group => ({
+    id: group.id,
+    name: group.name,
+    full_path: group.full_path,
+    kind: 'group'
+  }));
+
+  // targetNamespace가 제공된 경우 자동 설정
   useEffect(() => {
-    if (open) {
-      loadNamespaces();
-    }
-  }, [open]);
+    if (targetNamespace && open) {
+      const numericId = typeof targetNamespace.id === 'string' && targetNamespace.id.includes('-')
+        ? parseInt(targetNamespace.id.split('-').pop() || '0')
+        : Number(targetNamespace.id);
 
-  const loadNamespaces = async () => {
-    setLoadingNamespaces(true);
-    try {
-      // 네임스페이스(그룹) 목록 가져오기
-      const groups = await gitlabService.getGroups({ per_page: 100 });
-      const namespaceList = groups.map(group => ({
-        id: group.id,
-        name: group.name,
-        full_path: group.full_path,
+      setSelectedNamespace({
+        id: numericId,
+        name: targetNamespace.name || targetNamespace.full_path || '',
+        full_path: targetNamespace.full_path || targetNamespace.path || '',
         kind: 'group'
-      }));
-      setNamespaces(namespaceList);
-    } catch (error) {
-      console.error('Failed to load namespaces:', error);
-    } finally {
-      setLoadingNamespaces(false);
+      });
     }
-  };
+  }, [targetNamespace, open]);
 
   const handleTransfer = async () => {
-    if (!selectedNamespace) return;
+    if (!selectedNamespace || selectedItems.length === 0) return;
 
-    setLoading(true);
-    setResult(null);
+    setShowProgress(true);
 
-    try {
-      const items = selectedItems.map(item => {
-        // Extract numeric ID from string ID like 'project-123' or 'group-456'
-        let numericId = item.id;
-        if (typeof item.id === 'string' && item.id.includes('-')) {
-          const parts = item.id.split('-');
-          numericId = parseInt(parts[parts.length - 1]);
+    // 순차 처리 시작
+    await sequentialOp.execute(
+      selectedItems.map(item => ({
+        id: String(item.id),
+        name: item.name,
+        type: item.type as 'group' | 'project',
+        full_path: item.full_path || item.path || '',
+      })),
+      async (item) => {
+        const numericId = IdConverter.toNumeric(item.id);
+        if (item.type === 'project') {
+          await gitlabService.transferProject(numericId, selectedNamespace.id);
+        } else {
+          await gitlabService.transferGroup(numericId, selectedNamespace.id);
         }
-        return {
-          id: numericId,
-          name: item.name,
-          type: item.type
-        };
-      });
-
-      const response = await gitlabService.bulkTransfer(items, selectedNamespace.id);
-      
-      console.log('Transfer response:', response); // Debug log
-      
-      setResult({
-        success: (response as any).success || [],
-        failed: (response as any).failed || [],
-        total: (response as any).total || items.length
-      });
-
-      if ((response as any).success?.length > 0) {
-        onSuccess((response as any)); // Pass the response data to onSuccess
       }
-    } catch (error: any) {
-      setResult({
-        success: [],
-        failed: selectedItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          error: error.message || 'Unknown error'
-        })),
-        total: selectedItems.length
-      });
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
   const handleClose = () => {
-    if (!loading) {
-      setResult(null);
-      setSelectedNamespace(null);
-      onClose();
-    }
+    if (sequentialOp.isRunning) return;
+    sequentialOp.reset();
+    setSelectedNamespace(null);
+    setShowProgress(false);
+    onClose();
   };
 
-  const groupCount = selectedItems.filter(item => item.type === 'group').length;
-  const projectCount = selectedItems.filter(item => item.type === 'project').length;
+  const handleProgressComplete = () => {
+    setShowProgress(false);
+    handleClose();
+  };
+
+  // 진행 다이얼로그 표시 중이면
+  if (showProgress) {
+    return (
+      <BulkProgressDialog
+        open={open}
+        onClose={handleClose}
+        title="네임스페이스 이동 중"
+        subtitle={`${selectedItems.length}개 항목을 ${selectedNamespace?.full_path || '대상 네임스페이스'}로 이동합니다`}
+        items={sequentialOp.items}
+        currentIndex={sequentialOp.currentIndex}
+        progress={sequentialOp.progress}
+        completed={sequentialOp.completed}
+        failed={sequentialOp.failed}
+        total={sequentialOp.total}
+        isRunning={sequentialOp.isRunning}
+        isPaused={sequentialOp.isPaused}
+        isCancelled={sequentialOp.isCancelled}
+        startTime={sequentialOp.startTime}
+        onCancel={sequentialOp.cancel}
+        onPause={sequentialOp.pause}
+        onResume={sequentialOp.resume}
+        onComplete={handleProgressComplete}
+      />
+    );
+  }
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="md" 
-      fullWidth
-      disableEscapeKeyDown={loading}
+    <BaseBulkDialog
+      open={open}
+      onClose={handleClose}
+      title="일괄 네임스페이스 이동"
+      subtitle={`${selectedItems.length}개 항목을 다른 네임스페이스로 이동합니다`}
+      icon={<MoveUp color="primary" />}
+      maxWidth="md"
+      actions={
+        <DialogActionButtons
+          onCancel={handleClose}
+          onConfirm={handleTransfer}
+          confirmLabel="이동"
+          confirmColor="primary"
+          confirmIcon={<MoveUp />}
+          disabled={!selectedNamespace || selectedItems.length === 0}
+        />
+      }
     >
-      <DialogTitle>
-        <Typography variant="h6" component="div">
-          일괄 네임스페이스 이동
+      <Alert severity="info" sx={{ mb: 2 }}>
+        <Typography variant="body2">
+          선택한 항목을 다른 네임스페이스(그룹)로 이동합니다.
         </Typography>
-      </DialogTitle>
+      </Alert>
 
-      <DialogContent>
-        {!result && (
-          <>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                선택한 항목을 다른 네임스페이스(그룹)로 이동합니다.
-              </Typography>
-            </Alert>
+      <Box sx={{ mb: 3 }}>
+        <Autocomplete
+          options={namespaces}
+          getOptionLabel={(option) => `${option.name} (${option.full_path})`}
+          value={selectedNamespace}
+          onChange={(_, newValue) => setSelectedNamespace(newValue)}
+          loading={loadingNamespaces}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="대상 네임스페이스"
+              placeholder="이동할 네임스페이스를 선택하세요"
+              variant="outlined"
+              fullWidth
+            />
+          )}
+        />
+      </Box>
 
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                이동할 항목:
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {groupCount > 0 && (
-                  <Chip
-                    icon={<FolderOpen />}
-                    label={`${groupCount}개 그룹`}
-                    color="primary"
-                    size="small"
-                  />
-                )}
-                {projectCount > 0 && (
-                  <Chip
-                    icon={<Assignment />}
-                    label={`${projectCount}개 프로젝트`}
-                    color="secondary"
-                    size="small"
-                  />
-                )}
-              </Box>
-            </Box>
-
-            <Box sx={{ mb: 3 }}>
-              <Autocomplete
-                options={namespaces}
-                getOptionLabel={(option) => `${option.name} (${option.full_path})`}
-                value={selectedNamespace}
-                onChange={(_, newValue) => setSelectedNamespace(newValue)}
-                loading={loadingNamespaces}
-                disabled={loading}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="대상 네임스페이스"
-                    placeholder="이동할 네임스페이스를 선택하세요"
-                    variant="outlined"
-                    fullWidth
-                  />
-                )}
-              />
-            </Box>
-
-            <Box sx={{ maxHeight: 300, overflow: 'auto', mb: 2 }}>
-              <List dense>
-                {selectedItems.map((item) => (
-                  <ListItem key={`${item.type}-${item.id}`}>
-                    <ListItemIcon>
-                      {item.type === 'group' ? (
-                        <FolderOpen color="primary" />
-                      ) : (
-                        <Assignment color="secondary" />
-                      )}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.name}
-                      secondary={'full_path' in item ? item.full_path : (item as any).path_with_namespace}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-          </>
-        )}
-
-        {loading && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" gutterBottom>
-              이동 중...
-            </Typography>
-            <LinearProgress />
-          </Box>
-        )}
-
-        {result && (
-          <Box sx={{ mt: 2 }}>
-            <Alert 
-              severity={result.failed.length === 0 ? 'success' : result.success.length > 0 ? 'warning' : 'error'}
-              sx={{ mb: 2 }}
-            >
-              <Typography variant="body2">
-                전체: {result.total}개, 성공: {result.success.length}개, 실패: {result.failed.length}개
-              </Typography>
-            </Alert>
-
-            {result.success.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  성공:
-                </Typography>
-                <List dense>
-                  {result.success.map((item) => (
-                    <ListItem key={`${item.type}-${item.id}`}>
-                      <ListItemIcon>
-                        <CheckCircle color="success" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.name}
-                        secondary={`${item.type === 'group' ? '그룹' : '프로젝트'} → 네임스페이스 ID: ${item.newNamespaceId}`}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            )}
-
-            {result.failed.length > 0 && (
-              <Box>
-                <Typography variant="subtitle2" gutterBottom>
-                  실패:
-                </Typography>
-                <List dense>
-                  {result.failed.map((item) => (
-                    <ListItem key={`${item.type}-${item.id}`}>
-                      <ListItemIcon>
-                        <Error color="error" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.name}
-                        secondary={item.error}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            )}
-          </Box>
-        )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={handleClose} disabled={loading}>
-          {result ? '닫기' : '취소'}
-        </Button>
-        {!result && (
-          <Button
-            onClick={handleTransfer}
-            color="primary"
-            variant="contained"
-            disabled={loading || !selectedNamespace || selectedItems.length === 0}
-            startIcon={<MoveUp />}
-          >
-            이동
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+      <BulkItemList
+        items={selectedItems}
+        title="이동할 항목"
+        searchable={selectedItems.length > 10}
+        maxHeight={300}
+        showStats
+      />
+    </BaseBulkDialog>
   );
 }

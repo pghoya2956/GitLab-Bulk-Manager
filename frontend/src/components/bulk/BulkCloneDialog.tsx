@@ -1,30 +1,33 @@
+/**
+ * BulkCloneDialog - 순차 처리 버전
+ * 항목별 실시간 진행률 표시
+ */
+
 import React, { useState } from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
   Alert,
-  LinearProgress,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
+  Typography,
   Box,
   TextField,
-  FormControl,
-  FormLabel,
   RadioGroup,
   FormControlLabel,
   Radio,
+  FormControl,
+  FormLabel,
 } from '@mui/material';
-import FolderIcon from '@mui/icons-material/Folder';
-import CodeIcon from '@mui/icons-material/Code';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { ContentCopy } from '@mui/icons-material';
+
+// Base Components
+import { BaseBulkDialog } from '../common/BaseBulkDialog';
+import { BulkItemList } from '../common/BulkItemList';
+import { BulkProgressDialog } from '../common/BulkProgressDialog';
+import { DialogActionButtons } from '../common/BulkActionButtons';
+
+// Hooks
+import { useSequentialBulkOperation } from '../../hooks/useSequentialBulkOperation';
+import { useHistory } from '../../store/hooks';
 import { gitlabService } from '../../services/gitlab';
-import { useNotification } from '../../hooks/useNotification';
+import { IdConverter } from '../../utils/idConverter';
 
 interface BulkCloneDialogProps {
   open: boolean;
@@ -35,12 +38,7 @@ interface BulkCloneDialogProps {
     type: 'group' | 'project';
     full_path: string;
   }>;
-  onSuccess?: () => void;
-}
-
-interface BulkOperationResults {
-  successful: Array<{ id: number; name: string }>;
-  failed: Array<{ id: number; name: string; error: string }>;
+  onSuccess?: (result?: unknown) => void;
 }
 
 export const BulkCloneDialog: React.FC<BulkCloneDialogProps> = ({
@@ -49,263 +47,201 @@ export const BulkCloneDialog: React.FC<BulkCloneDialogProps> = ({
   selectedItems,
   onSuccess,
 }) => {
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<BulkOperationResults | null>(null);
   const [namingOption, setNamingOption] = useState<'suffix' | 'custom'>('suffix');
   const [suffix, setSuffix] = useState('_copy');
   const [customName, setCustomName] = useState('');
-  const { showSuccess, showError } = useNotification();
+  const [showProgress, setShowProgress] = useState(false);
+
+  // Redux hooks
+  const { addHistoryAction } = useHistory();
+
+  // 순차 처리 훅
+  const sequentialOp = useSequentialBulkOperation({
+    delayBetweenItems: 500,
+    onComplete: (result) => {
+      // Add to history
+      const nameModifier = namingOption === 'suffix' ? suffix : customName;
+      addHistoryAction({
+        type: 'clone',
+        description: `Cloned ${result.success.length} items with modifier "${nameModifier}"`,
+        items: selectedItems,
+        metadata: { nameModifier },
+        timestamp: new Date().toISOString(),
+        undoable: false,
+      });
+
+      if (onSuccess) {
+        onSuccess(result);
+      }
+    },
+  });
 
   const handleClone = async () => {
-    if (namingOption === 'custom' && !customName.trim()) {
-      showError('사용자 정의 이름을 입력해주세요.');
-      return;
-    }
+    if (namingOption === 'custom' && !customName.trim()) return;
+    if (selectedItems.length === 0) return;
 
-    setLoading(true);
-    try {
-      const items = selectedItems.map(item => ({
-        id: parseInt(item.id.replace(/^(group|project)-/, '')),
+    const nameModifier = namingOption === 'suffix' ? suffix : customName;
+    setShowProgress(true);
+
+    // 순차 처리 시작
+    await sequentialOp.execute(
+      selectedItems.map(item => ({
+        id: item.id,
         name: item.name,
         type: item.type,
-      }));
-
-      const nameModifier = namingOption === 'suffix' ? suffix : customName;
-      const response = await gitlabService.bulkClone(items, nameModifier);
-      
-      if (response.results) {
-        setResults(response.results);
-        
-        if (response.results.successful?.length > 0) {
-          showSuccess(`${response.results.successful.length}개 항목이 성공적으로 복제되었습니다`);
-        }
-        if (response.results.failed?.length > 0) {
-          showError(`${response.results.failed.length}개 항목 복제 실패`);
-        }
-        
-        if (onSuccess && response.results.successful?.length > 0) {
-          setTimeout(() => {
-            onSuccess();
-            onClose();
-          }, 2000);
+        full_path: item.full_path,
+      })),
+      async (item) => {
+        const numericId = IdConverter.toNumeric(item.id);
+        if (item.type === 'project') {
+          await gitlabService.cloneProject(numericId, nameModifier);
+        } else {
+          await gitlabService.cloneGroup(numericId, nameModifier);
         }
       }
-    } catch (error) {
-      showError((error as Error).message || '복제 중 오류가 발생했습니다');
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
   const handleClose = () => {
-    if (!loading) {
-      setResults(null);
-      onClose();
-    }
+    if (sequentialOp.isRunning) return;
+    sequentialOp.reset();
+    setNamingOption('suffix');
+    setSuffix('_copy');
+    setCustomName('');
+    setShowProgress(false);
+    onClose();
   };
 
-  const groups = selectedItems.filter(item => item.type === 'group');
-  const projects = selectedItems.filter(item => item.type === 'project');
+  const handleProgressComplete = () => {
+    setShowProgress(false);
+    handleClose();
+  };
+
+  // 미리보기용 이름 생성
+  const getPreviewName = (itemName: string) => {
+    if (namingOption === 'suffix') {
+      return `${itemName}${suffix}`;
+    }
+    return customName || '새 이름';
+  };
+
+  // 진행 다이얼로그 표시 중이면
+  if (showProgress) {
+    return (
+      <BulkProgressDialog
+        open={open}
+        onClose={handleClose}
+        title="항목 복제 중"
+        subtitle={`${selectedItems.length}개 항목을 복제합니다`}
+        items={sequentialOp.items}
+        currentIndex={sequentialOp.currentIndex}
+        progress={sequentialOp.progress}
+        completed={sequentialOp.completed}
+        failed={sequentialOp.failed}
+        total={sequentialOp.total}
+        isRunning={sequentialOp.isRunning}
+        isPaused={sequentialOp.isPaused}
+        isCancelled={sequentialOp.isCancelled}
+        startTime={sequentialOp.startTime}
+        onCancel={sequentialOp.cancel}
+        onPause={sequentialOp.pause}
+        onResume={sequentialOp.resume}
+        onComplete={handleProgressComplete}
+      />
+    );
+  }
 
   return (
-    <Dialog 
-      open={open} 
+    <BaseBulkDialog
+      open={open}
       onClose={handleClose}
+      title="항목 복제"
+      subtitle={`${selectedItems.length}개 항목을 복제합니다`}
+      icon={<ContentCopy color="action" />}
       maxWidth="sm"
-      fullWidth
-      disableEscapeKeyDown={loading}
+      actions={
+        <DialogActionButtons
+          onCancel={handleClose}
+          onConfirm={handleClone}
+          confirmLabel="복제"
+          confirmColor="primary"
+          confirmIcon={<ContentCopy />}
+          disabled={
+            selectedItems.length === 0 ||
+            (namingOption === 'custom' && !customName.trim())
+          }
+        />
+      }
     >
-      <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ContentCopyIcon color="action" />
-          <Typography variant="h6">항목 복제</Typography>
-        </Box>
-      </DialogTitle>
-      
-      <DialogContent>
-        {!results && (
-          <>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                선택한 프로젝트와 그룹을 복제합니다. 
-                복제된 항목은 원본과 동일한 설정을 가지지만 독립적으로 관리됩니다.
-              </Typography>
-            </Alert>
+      <Alert severity="info" sx={{ mb: 2 }}>
+        <Typography variant="body2">
+          선택한 프로젝트와 그룹을 복제합니다.
+          복제된 항목은 원본과 동일한 설정을 가지지만 독립적으로 관리됩니다.
+        </Typography>
+      </Alert>
 
-            {/* Selected items summary */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                복제할 항목 ({selectedItems.length}개):
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                {groups.length > 0 && (
-                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <FolderIcon fontSize="small" color="warning" />
-                    {groups.length}개 그룹
-                  </Typography>
-                )}
-                {projects.length > 0 && (
-                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <CodeIcon fontSize="small" color="primary" />
-                    {projects.length}개 프로젝트
-                  </Typography>
-                )}
-              </Box>
+      {/* 이름 설정 */}
+      <FormControl component="fieldset" sx={{ mb: 3, width: '100%' }}>
+        <FormLabel component="legend">복제 이름 설정</FormLabel>
+        <RadioGroup
+          value={namingOption}
+          onChange={(e) => setNamingOption(e.target.value as 'suffix' | 'custom')}
+        >
+          <FormControlLabel
+            value="suffix"
+            control={<Radio />}
+            label="접미사 추가"
+          />
+          {namingOption === 'suffix' && (
+            <TextField
+              fullWidth
+              size="small"
+              value={suffix}
+              onChange={(e) => setSuffix(e.target.value)}
+              placeholder="_copy"
+              sx={{ ml: 4, mb: 1 }}
+              helperText="예: project_name → project_name_copy"
+            />
+          )}
+
+          <FormControlLabel
+            value="custom"
+            control={<Radio />}
+            label="사용자 정의 이름"
+          />
+          {namingOption === 'custom' && (
+            <TextField
+              fullWidth
+              size="small"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder="새 이름 입력"
+              sx={{ ml: 4, mb: 1 }}
+              helperText="모든 복제 항목에 이 이름이 사용됩니다"
+              error={namingOption === 'custom' && !customName.trim()}
+            />
+          )}
+        </RadioGroup>
+      </FormControl>
+
+      {/* 복제 미리보기 */}
+      <BulkItemList
+        items={selectedItems.map(item => ({
+          ...item,
+          name: (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span>{item.name}</span>
+              <span>→</span>
+              <span style={{ fontWeight: 'bold' }}>
+                {getPreviewName(item.name)}
+              </span>
             </Box>
-
-            {/* Naming options */}
-            <FormControl component="fieldset" sx={{ mb: 2, width: '100%' }}>
-              <FormLabel component="legend">복제 이름 설정</FormLabel>
-              <RadioGroup
-                value={namingOption}
-                onChange={(e) => setNamingOption(e.target.value as 'suffix' | 'custom')}
-              >
-                <FormControlLabel 
-                  value="suffix" 
-                  control={<Radio />} 
-                  label="접미사 추가" 
-                />
-                {namingOption === 'suffix' && (
-                  <TextField
-                    fullWidth
-                    size="small"
-                    value={suffix}
-                    onChange={(e) => setSuffix(e.target.value)}
-                    placeholder="_copy"
-                    sx={{ ml: 4, mb: 1 }}
-                    helperText="예: project_name → project_name_copy"
-                  />
-                )}
-                
-                <FormControlLabel 
-                  value="custom" 
-                  control={<Radio />} 
-                  label="사용자 정의 이름" 
-                />
-                {namingOption === 'custom' && (
-                  <TextField
-                    fullWidth
-                    size="small"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="새 이름 입력"
-                    sx={{ ml: 4, mb: 1 }}
-                    helperText="모든 복제 항목에 이 이름이 사용됩니다"
-                  />
-                )}
-              </RadioGroup>
-            </FormControl>
-
-            {/* Items list */}
-            <Typography variant="subtitle2" gutterBottom>
-              복제될 항목 목록:
-            </Typography>
-            <List dense sx={{ maxHeight: 200, overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1 }}>
-              {selectedItems.map((item) => (
-                <ListItem key={item.id}>
-                  <ListItemIcon>
-                    {item.type === 'group' ? (
-                      <FolderIcon color="warning" />
-                    ) : (
-                      <CodeIcon color="primary" />
-                    )}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <span>{item.name}</span>
-                        <span>→</span>
-                        <span style={{ fontWeight: 'bold' }}>
-                          {namingOption === 'suffix' 
-                            ? `${item.name}${suffix}` 
-                            : customName || '새 이름'}
-                        </span>
-                      </Box>
-                    }
-                    secondary={item.full_path}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <Box sx={{ mt: 2 }}>
-            <LinearProgress />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              항목을 복제하는 중...
-            </Typography>
-          </Box>
-        )}
-
-        {/* Results */}
-        {results && (
-          <Box sx={{ mt: 2 }}>
-            <Alert 
-              severity={results.failed.length === 0 ? 'success' : 'warning'}
-              sx={{ mb: 2 }}
-            >
-              <Typography variant="subtitle2">
-                작업 완료
-              </Typography>
-              <Typography variant="body2">
-                성공: {results.successful.length} | 실패: {results.failed.length}
-              </Typography>
-            </Alert>
-
-            {results.successful.length > 0 && (
-              <>
-                <Typography variant="subtitle2" color="success.main" gutterBottom>
-                  성공한 항목:
-                </Typography>
-                <List dense sx={{ maxHeight: 150, overflow: 'auto' }}>
-                  {results.successful.map((item, index) => (
-                    <ListItem key={index}>
-                      <ListItemText primary={item.name} />
-                    </ListItem>
-                  ))}
-                </List>
-              </>
-            )}
-
-            {results.failed.length > 0 && (
-              <>
-                <Typography variant="subtitle2" color="error" gutterBottom sx={{ mt: 2 }}>
-                  실패한 항목:
-                </Typography>
-                <List dense sx={{ maxHeight: 150, overflow: 'auto' }}>
-                  {results.failed.map((item, index) => (
-                    <ListItem key={index}>
-                      <ListItemText 
-                        primary={item.name}
-                        secondary={item.error}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </>
-            )}
-          </Box>
-        )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={handleClose} disabled={loading}>
-          {results ? '닫기' : '취소'}
-        </Button>
-        {!results && (
-          <Button 
-            onClick={handleClone} 
-            variant="contained" 
-            disabled={loading || (namingOption === 'custom' && !customName.trim())}
-            startIcon={<ContentCopyIcon />}
-          >
-            복제
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+          ) as unknown as string
+        }))}
+        title="복제될 항목 목록"
+        maxHeight={200}
+        showStats
+      />
+    </BaseBulkDialog>
   );
 };

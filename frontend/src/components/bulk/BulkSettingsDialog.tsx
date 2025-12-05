@@ -36,7 +36,7 @@ interface BulkSettingsDialogProps {
     full_path: string;
   }>;
   settingType?: 'visibility' | 'permissions' | 'protected' | 'push-rules' | null;
-  onSuccess?: () => void;
+  onSuccess?: (result?: any) => void;
 }
 
 interface BulkOperationResults {
@@ -103,16 +103,21 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
 
       const response = await gitlabService.bulkSetVisibility(items, visibility);
       if (response.results) {
-        setResults(response.results);
-        
-        if (response.results.successful?.length > 0) {
-          showSuccess(`Successfully updated visibility for ${response.results.successful.length} items`);
+        // Backend returns success/failed, convert to successful/failed for UI
+        const normalizedResults = {
+          successful: response.results.success || response.results.successful || [],
+          failed: response.results.failed || [],
+        };
+        setResults(normalizedResults);
+
+        if (normalizedResults.successful?.length > 0) {
+          showSuccess(`Successfully updated visibility for ${normalizedResults.successful.length} items`);
         }
-        if (response.results.failed?.length > 0) {
-          showError(`Failed to update ${response.results.failed.length} items`);
+        if (normalizedResults.failed?.length > 0) {
+          showError(`Failed to update ${normalizedResults.failed.length} items`);
         }
-        
-        if (onSuccess && response.results.successful?.length > 0) {
+
+        if (onSuccess && normalizedResults.successful?.length > 0) {
           setTimeout(() => {
             onSuccess();
             onClose();
@@ -130,19 +135,23 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
     setLoading(true);
     try {
       const projectIds = projects.map(p => parseInt(p.id.replace('project-', '')));
-      
+
       const response = await gitlabService.bulkSetProtectedBranches(projectIds, branches.rules as unknown as GitLabProtectedBranch[]);
       if (response.results) {
-        setResults(response.results);
-        
-        if (response.results.successful?.length > 0) {
-          showSuccess(`Successfully updated protected branches for ${response.results.successful.length} projects`);
+        const normalizedResults = {
+          successful: response.results.success || response.results.successful || [],
+          failed: response.results.failed || [],
+        };
+        setResults(normalizedResults);
+
+        if (normalizedResults.successful?.length > 0) {
+          showSuccess(`Successfully updated protected branches for ${normalizedResults.successful.length} projects`);
         }
-        if (response.results.failed?.length > 0) {
-          showError(`Failed to update ${response.results.failed.length} projects`);
+        if (normalizedResults.failed?.length > 0) {
+          showError(`Failed to update ${normalizedResults.failed.length} projects`);
         }
-        
-        if (onSuccess && response.results.successful?.length > 0) {
+
+        if (onSuccess && normalizedResults.successful?.length > 0) {
           setTimeout(() => {
             onSuccess();
             onClose();
@@ -160,19 +169,23 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
     setLoading(true);
     try {
       const projectIds = projects.map(p => parseInt(p.id.replace('project-', '')));
-      
+
       const response = await gitlabService.bulkSetPushRules(projectIds, rules);
       if (response.results) {
-        setResults(response.results);
-        
-        if (response.results.successful?.length > 0) {
-          showSuccess(`Successfully updated push rules for ${response.results.successful.length} projects`);
+        const normalizedResults = {
+          successful: response.results.success || response.results.successful || [],
+          failed: response.results.failed || [],
+        };
+        setResults(normalizedResults);
+
+        if (normalizedResults.successful?.length > 0) {
+          showSuccess(`Successfully updated push rules for ${normalizedResults.successful.length} projects`);
         }
-        if (response.results.failed?.length > 0) {
-          showError(`Failed to update ${response.results.failed.length} projects`);
+        if (normalizedResults.failed?.length > 0) {
+          showError(`Failed to update ${normalizedResults.failed.length} projects`);
         }
-        
-        if (onSuccess && response.results.successful?.length > 0) {
+
+        if (onSuccess && normalizedResults.successful?.length > 0) {
           setTimeout(() => {
             onSuccess();
             onClose();
@@ -197,16 +210,20 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
 
       const response = await gitlabService.bulkSetAccessLevels(items, settings);
       if (response.results) {
-        setResults(response.results);
-        
-        if (response.results.successful?.length > 0) {
-          showSuccess(`Successfully updated access levels for ${response.results.successful.length} items`);
+        const normalizedResults = {
+          successful: response.results.success || response.results.successful || [],
+          failed: response.results.failed || [],
+        };
+        setResults(normalizedResults);
+
+        if (normalizedResults.successful?.length > 0) {
+          showSuccess(`Successfully updated access levels for ${normalizedResults.successful.length} items`);
         }
-        if (response.results.failed?.length > 0) {
-          showError(`Failed to update ${response.results.failed.length} items`);
+        if (normalizedResults.failed?.length > 0) {
+          showError(`Failed to update ${normalizedResults.failed.length} items`);
         }
-        
-        if (onSuccess && response.results.successful?.length > 0) {
+
+        if (onSuccess && normalizedResults.successful?.length > 0) {
           setTimeout(() => {
             onSuccess();
             onClose();
@@ -273,27 +290,27 @@ export const BulkSettingsDialog: React.FC<BulkSettingsDialogProps> = ({
 
         {/* Results Display */}
         {results && (
-          <Alert 
-            severity={results.failed.length === 0 ? 'success' : 'warning'}
+          <Alert
+            severity={(results.failed?.length || 0) === 0 ? 'success' : 'warning'}
             sx={{ mb: 2 }}
           >
             <Typography variant="subtitle2">
               Operation Complete
             </Typography>
             <Typography variant="body2">
-              Success: {results.successful.length} | Failed: {results.failed.length}
+              Success: {results.successful?.length || 0} | Failed: {results.failed?.length || 0}
             </Typography>
-            {results.failed.length > 0 && (
+            {(results.failed?.length || 0) > 0 && (
               <Box sx={{ mt: 1 }}>
                 <Typography variant="caption" color="error">
                   Failed items:
                 </Typography>
                 <List dense>
-                  {results.failed.slice(0, 5).map((item, index) => (
+                  {results.failed.slice(0, 5).map((item: any, index: number) => (
                     <ListItem key={index}>
-                      <ListItemText 
-                        primary={item.name}
-                        secondary={item.error}
+                      <ListItemText
+                        primary={typeof item.name === 'string' ? item.name : JSON.stringify(item.name)}
+                        secondary={typeof item.error === 'string' ? item.error : JSON.stringify(item.error)}
                       />
                     </ListItem>
                   ))}

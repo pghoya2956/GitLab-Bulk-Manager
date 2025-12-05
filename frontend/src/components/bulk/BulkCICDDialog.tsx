@@ -56,7 +56,7 @@ interface BulkCICDDialogProps {
     type: 'group' | 'project';
     full_path: string;
   }>;
-  onSuccess?: () => void;
+  onSuccess?: (result?: any) => void;
 }
 
 interface CICDVariable {

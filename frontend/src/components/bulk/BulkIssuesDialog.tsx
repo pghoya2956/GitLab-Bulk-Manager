@@ -45,7 +45,7 @@ interface BulkIssuesDialogProps {
     type: 'group' | 'project';
     full_path: string;
   }>;
-  onSuccess?: () => void;
+  onSuccess?: (result?: any) => void;
 }
 
 interface TabPanelProps {

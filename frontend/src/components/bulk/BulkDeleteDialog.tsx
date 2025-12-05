@@ -1,257 +1,180 @@
+/**
+ * BulkDeleteDialog - 순차 처리 버전
+ * 항목별 실시간 진행률 표시
+ */
+
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Alert,
-  LinearProgress,
-  Box,
-  Checkbox,
-  Chip,
-} from '@mui/material';
-import { FolderOpen, Assignment, Warning, CheckCircle, Error } from '@mui/icons-material';
+import { Alert, Typography, Box, Checkbox } from '@mui/material';
+import { Warning } from '@mui/icons-material';
+
+// Base Components
+import { BaseBulkDialog } from '../common/BaseBulkDialog';
+import { BulkItemList } from '../common/BulkItemList';
+import { BulkProgressDialog } from '../common/BulkProgressDialog';
+import { DialogActionButtons } from '../common/BulkActionButtons';
+
+// Hooks
+import { useSequentialBulkOperation } from '../../hooks/useSequentialBulkOperation';
+import { useHistory } from '../../store/hooks';
 import { gitlabService } from '../../services/gitlab';
-import type { GitLabGroup, GitLabProject } from '../../types/gitlab';
+import { IdConverter } from '../../utils/idConverter';
 
 interface BulkDeleteDialogProps {
   open: boolean;
   onClose: () => void;
-  selectedItems: Array<(GitLabGroup | GitLabProject) & { type: 'group' | 'project' }>;
-  onSuccess: () => void;
+  selectedItems: Array<{
+    id: string;
+    name: string;
+    type: 'group' | 'project';
+    full_path?: string;
+  }>;
+  onSuccess?: (result?: any) => void;
 }
 
-interface DeleteResult {
-  success: Array<{ id: number; name: string; type: 'group' | 'project' }>;
-  failed: Array<{ id: number; name: string; type: 'group' | 'project'; error: string }>;
-  total: number;
-}
-
-export function BulkDeleteDialog({ open, onClose, selectedItems, onSuccess }: BulkDeleteDialogProps) {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<DeleteResult | null>(null);
+export function BulkDeleteDialog({
+  open,
+  onClose,
+  selectedItems,
+  onSuccess,
+}: BulkDeleteDialogProps) {
   const [confirmChecked, setConfirmChecked] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
+
+  // Redux hooks
+  const { addHistoryAction } = useHistory();
+
+  // 순차 처리 훅
+  const sequentialOp = useSequentialBulkOperation({
+    delayBetweenItems: 500,
+    onComplete: (result) => {
+      // Add to history (삭제는 되돌릴 수 없음)
+      addHistoryAction({
+        type: 'delete',
+        description: `Deleted ${result.success.length} items`,
+        items: selectedItems,
+        timestamp: new Date().toISOString(),
+        undoable: false,
+      });
+
+      if (onSuccess) {
+        onSuccess(result);
+      }
+    },
+  });
+
+  // 프로젝트를 먼저 삭제하고, 그 다음 그룹 삭제 (의존성 순서)
+  const sortedItems = [...selectedItems].sort((a, b) => {
+    if (a.type === 'project' && b.type === 'group') return -1;
+    if (a.type === 'group' && b.type === 'project') return 1;
+    return 0;
+  });
 
   const handleDelete = async () => {
     if (!confirmChecked) return;
 
-    setLoading(true);
-    setResult(null);
+    setShowProgress(true);
 
-    try {
-      const items = selectedItems.map(item => ({
+    // 순차 처리 시작
+    await sequentialOp.execute(
+      sortedItems.map(item => ({
         id: item.id,
         name: item.name,
-        type: item.type
-      }));
-
-      const response = await gitlabService.bulkDelete(items);
-      
-      setResult({
-        success: (response as any).success || [],
-        failed: (response as any).failed || [],
-        total: (response as any).total || items.length
-      });
-      
-      // Don't call onSuccess here - wait for dialog close
-    } catch (error: any) {
-      setResult({
-        success: [],
-        failed: selectedItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          error: error.message || 'Unknown error'
-        })),
-        total: selectedItems.length
-      });
-    } finally {
-      setLoading(false);
-    }
+        type: item.type as 'group' | 'project',
+        full_path: item.full_path,
+      })),
+      async (item) => {
+        const numericId = IdConverter.toNumeric(item.id);
+        if (item.type === 'project') {
+          await gitlabService.deleteProject(numericId);
+        } else {
+          await gitlabService.deleteGroup(numericId);
+        }
+      }
+    );
   };
 
   const handleClose = () => {
-    if (!loading) {
-      // If we had successful deletions, trigger refresh when closing
-      if (result && result.success.length > 0) {
-        onSuccess();
-      }
-      setResult(null);
-      setConfirmChecked(false);
-      onClose();
-    }
+    if (sequentialOp.isRunning) return;
+    sequentialOp.reset();
+    setConfirmChecked(false);
+    setShowProgress(false);
+    onClose();
   };
 
-  const groupCount = selectedItems.filter(item => item.type === 'group').length;
-  const projectCount = selectedItems.filter(item => item.type === 'project').length;
+  const handleProgressComplete = () => {
+    setShowProgress(false);
+    handleClose();
+  };
+
+  // 진행 다이얼로그 표시 중이면
+  if (showProgress) {
+    return (
+      <BulkProgressDialog
+        open={open}
+        onClose={handleClose}
+        title="삭제 중"
+        subtitle={`${selectedItems.length}개 항목을 삭제합니다`}
+        items={sequentialOp.items}
+        currentIndex={sequentialOp.currentIndex}
+        progress={sequentialOp.progress}
+        completed={sequentialOp.completed}
+        failed={sequentialOp.failed}
+        total={sequentialOp.total}
+        isRunning={sequentialOp.isRunning}
+        isPaused={sequentialOp.isPaused}
+        isCancelled={sequentialOp.isCancelled}
+        startTime={sequentialOp.startTime}
+        onCancel={sequentialOp.cancel}
+        onPause={sequentialOp.pause}
+        onResume={sequentialOp.resume}
+        onComplete={handleProgressComplete}
+      />
+    );
+  }
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="md" 
-      fullWidth
-      disableEscapeKeyDown={loading}
+    <BaseBulkDialog
+      open={open}
+      onClose={handleClose}
+      title="일괄 삭제"
+      subtitle={`${selectedItems.length}개 항목을 영구적으로 삭제합니다`}
+      icon={<Warning color="error" />}
+      maxWidth="md"
+      actions={
+        <DialogActionButtons
+          onCancel={handleClose}
+          onConfirm={handleDelete}
+          confirmLabel="삭제"
+          confirmColor="error"
+          confirmIcon={<Warning />}
+          disabled={!confirmChecked || selectedItems.length === 0}
+        />
+      }
     >
-      <DialogTitle>
-        <Typography variant="h6" component="div">
-          일괄 삭제
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        <Typography variant="body2">
+          <strong>주의:</strong> 이 작업은 되돌릴 수 없습니다.
+          선택한 모든 항목이 영구적으로 삭제됩니다.
         </Typography>
-      </DialogTitle>
+      </Alert>
 
-      <DialogContent>
-        {!result && (
-          <>
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                <strong>주의:</strong> 이 작업은 되돌릴 수 없습니다. 선택한 모든 항목이 영구적으로 삭제됩니다.
-              </Typography>
-            </Alert>
+      <BulkItemList
+        items={selectedItems}
+        title="삭제할 항목"
+        searchable={selectedItems.length > 10}
+        maxHeight={300}
+        showStats
+      />
 
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                삭제할 항목:
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {groupCount > 0 && (
-                  <Chip
-                    icon={<FolderOpen />}
-                    label={`${groupCount}개 그룹`}
-                    color="primary"
-                    size="small"
-                  />
-                )}
-                {projectCount > 0 && (
-                  <Chip
-                    icon={<Assignment />}
-                    label={`${projectCount}개 프로젝트`}
-                    color="secondary"
-                    size="small"
-                  />
-                )}
-              </Box>
-            </Box>
-
-            <Box sx={{ maxHeight: 300, overflow: 'auto', mb: 2 }}>
-              <List dense>
-                {selectedItems.map((item) => (
-                  <ListItem key={`${item.type}-${item.id}`}>
-                    <ListItemIcon>
-                      {item.type === 'group' ? (
-                        <FolderOpen color="primary" />
-                      ) : (
-                        <Assignment color="secondary" />
-                      )}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.name}
-                      secondary={'full_path' in item ? item.full_path : (item as any).path_with_namespace}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Checkbox
-                checked={confirmChecked}
-                onChange={(e) => setConfirmChecked(e.target.checked)}
-                disabled={loading}
-              />
-              <Typography variant="body2">
-                위 항목을 모두 삭제하는 것을 확인합니다.
-              </Typography>
-            </Box>
-          </>
-        )}
-
-        {loading && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" gutterBottom>
-              삭제 중...
-            </Typography>
-            <LinearProgress />
-          </Box>
-        )}
-
-        {result && (
-          <Box sx={{ mt: 2 }}>
-            <Alert 
-              severity={result.failed.length === 0 ? 'success' : result.success.length > 0 ? 'warning' : 'error'}
-              sx={{ mb: 2 }}
-            >
-              <Typography variant="body2">
-                전체: {result.total}개, 성공: {result.success.length}개, 실패: {result.failed.length}개
-              </Typography>
-            </Alert>
-
-            {result.success.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  성공:
-                </Typography>
-                <List dense>
-                  {result.success.map((item) => (
-                    <ListItem key={`${item.type}-${item.id}`}>
-                      <ListItemIcon>
-                        <CheckCircle color="success" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.name}
-                        secondary={item.type === 'group' ? '그룹' : '프로젝트'}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            )}
-
-            {result.failed.length > 0 && (
-              <Box>
-                <Typography variant="subtitle2" gutterBottom>
-                  실패:
-                </Typography>
-                <List dense>
-                  {result.failed.map((item) => (
-                    <ListItem key={`${item.type}-${item.id}`}>
-                      <ListItemIcon>
-                        <Error color="error" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.name}
-                        secondary={item.error}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            )}
-          </Box>
-        )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={handleClose} disabled={loading}>
-          {result ? '닫기' : '취소'}
-        </Button>
-        {!result && (
-          <Button
-            onClick={handleDelete}
-            color="error"
-            variant="contained"
-            disabled={loading || !confirmChecked || selectedItems.length === 0}
-            startIcon={<Warning />}
-          >
-            삭제
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
+        <Checkbox
+          checked={confirmChecked}
+          onChange={(e) => setConfirmChecked(e.target.checked)}
+        />
+        <Typography variant="body2">
+          위 항목을 모두 삭제하는 것을 확인합니다.
+        </Typography>
+      </Box>
+    </BaseBulkDialog>
   );
 }
