@@ -193,11 +193,21 @@ export interface BulkOperationResult {
   failed?: Array<{ name: string; error: string }>;
   skipped?: Array<{ name: string; reason: string }>;
   // Properties for bulk settings operations
+  // Note: Backend returns 'success' array, not 'successful'
   results?: {
-    successful: Array<{ id: number; name: string }>;
-    failed: Array<{ id: number; name: string; error: string }>;
+    success: Array<{ id: number; name: string; type?: string }>;
+    successful?: Array<{ id: number; name: string }>; // Alias for compatibility
+    failed: Array<{ id: number; name: string; error: string; type?: string }>;
     created?: Array<{ id: number; name: string; path: string }>;
     skipped?: Array<{ name: string; reason: string }>;
+    total?: number;
+  };
+  summary?: {
+    total: number;
+    success: number;
+    failed: number;
+    created?: number;
+    skipped?: number;
   };
 }
 
@@ -257,18 +267,6 @@ export interface TreeNode {
   memberCount?: number;
   accessLevel?: string;
   visibility?: 'private' | 'internal' | 'public';
-}
-
-// WebSocket types
-export interface WebSocketMessage {
-  type: string;
-  jobId?: string;
-  groupId?: number;
-  status?: 'progress' | 'success' | 'error' | 'complete';
-  current?: number;
-  total?: number;
-  message?: string;
-  data?: any;
 }
 
 // Permission overview types

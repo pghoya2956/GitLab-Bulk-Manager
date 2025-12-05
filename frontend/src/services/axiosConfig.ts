@@ -2,6 +2,10 @@ import axios from 'axios';
 import { store } from '../store';
 import { logout } from '../store/slices/authSlice';
 
+// Set base URL from environment variable
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:4050';
+axios.defaults.withCredentials = true; // Always send cookies with requests
+
 // Request interceptor
 axios.interceptors.request.use(
   (config) => {

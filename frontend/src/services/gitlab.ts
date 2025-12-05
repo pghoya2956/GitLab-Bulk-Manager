@@ -100,6 +100,43 @@ export const gitlabService = {
     return gitLabClient.delete(`/projects/${id}`);
   },
 
+  // Single item operations for sequential processing
+  async archiveProject(id: number): Promise<GitLabProject> {
+    return gitLabClient.post<GitLabProject>(`/projects/${id}/archive`);
+  },
+
+  async unarchiveProject(id: number): Promise<GitLabProject> {
+    return gitLabClient.post<GitLabProject>(`/projects/${id}/unarchive`);
+  },
+
+  async cloneProject(id: number, suffix: string = '_copy'): Promise<GitLabProject> {
+    // Get original project first
+    const original = await gitLabClient.get<GitLabProject>(`/projects/${id}`);
+    // Create new project with suffix
+    const newPath = original.path + suffix.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    return gitLabClient.post<GitLabProject>('/projects', {
+      name: original.name + suffix,
+      path: newPath,
+      namespace_id: original.namespace.id,
+      visibility: original.visibility,
+      description: original.description,
+    });
+  },
+
+  async cloneGroup(id: number, suffix: string = '_copy'): Promise<GitLabGroup> {
+    // Get original group first
+    const original = await gitLabClient.get<GitLabGroup>(`/groups/${id}`);
+    // Create new group with suffix
+    const newPath = original.path + suffix.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    return gitLabClient.post<GitLabGroup>('/groups', {
+      name: original.name + suffix,
+      path: newPath,
+      parent_id: original.parent_id,
+      visibility: original.visibility,
+      description: original.description,
+    });
+  },
+
   // Users
   async getUsers(params?: { page?: number; per_page?: number; search?: string }) {
     return gitLabClient.get('/users', { params });

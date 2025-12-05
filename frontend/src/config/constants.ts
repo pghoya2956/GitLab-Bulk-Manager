@@ -6,11 +6,6 @@ export const API_TIMEOUT = 30000; // 30 seconds
 export const API_RETRY_COUNT = 3;
 export const API_RETRY_DELAY = 1000; // 1 second
 
-// WebSocket configuration
-export const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:4050';
-export const WS_RECONNECT_DELAY = 5000; // 5 seconds
-export const WS_MAX_RECONNECT_ATTEMPTS = 5;
-
 // Pagination
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;

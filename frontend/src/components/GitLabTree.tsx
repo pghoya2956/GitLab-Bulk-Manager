@@ -57,6 +57,9 @@ interface GitLabTreeProps {
   showPermissions?: boolean;
   multiSelect?: boolean;
   searchTerm?: string;
+  targetGroupToExpand?: string | null;  // 펼쳐야 할 대상 그룹 ID
+  onExpandComplete?: (groupId: string) => void;  // 펼침 완료 콜백
+  highlightedNodeId?: string | null;  // 하이라이트할 노드 ID
 }
 
 // Helper function to get access level color
@@ -111,7 +114,6 @@ const isHighLevelAccess = (level: string): boolean => {
 };
 
 export const GitLabTree: React.FC<GitLabTreeProps> = ({
-  onSelect,
   onDragStart,
   onDrop,
   selectedNodeId,
@@ -122,8 +124,10 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
   refreshTrigger,
   showOnlyDeveloperPlus = false,
   showPermissions = true,
-  multiSelect = false,
   searchTerm = '',
+  targetGroupToExpand = null,
+  onExpandComplete,
+  highlightedNodeId = null,
 }) => {
   const [nodes, setNodes] = useState<{ [key: string]: TreeNode }>({});
   const [rootNodes, setRootNodes] = useState<string[]>([]);
@@ -166,8 +170,29 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
 
   // Load root groups on mount and when refresh triggered
   useEffect(() => {
-    loadRootNodes();
+    console.log('[GitLabTree] RefreshTrigger changed:', refreshTrigger);
+    if (refreshTrigger !== undefined) {
+      loadRootNodes();
+    }
   }, [refreshTrigger]);
+
+  // Auto-load children when nodes are expanded
+  useEffect(() => {
+    const loadNewlyExpandedNodes = async () => {
+      // Find nodes that are expanded but don't have children loaded yet
+      for (const nodeId of expanded) {
+        const node = nodes[nodeId];
+        if (node && node.type === 'group' && node.hasChildren && !node.children) {
+          // This node is expanded but children haven't been loaded
+          await loadChildren(nodeId, true);
+        }
+      }
+    };
+    
+    if (expanded.length > 0 && Object.keys(nodes).length > 0) {
+      loadNewlyExpandedNodes();
+    }
+  }, [expanded, nodes]);
 
   // Auto-expand to show selected node
   useEffect(() => {
@@ -207,6 +232,88 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
       expandToNode(selectedNodeId);
     }
   }, [selectedNodeId, nodes]);
+
+  // Auto-expand to target group when specified
+  useEffect(() => {
+    if (!targetGroupToExpand) {
+      console.log('[GitLabTree] No targetGroupToExpand');
+      return;
+    }
+    
+    console.log('[GitLabTree] Target group to expand:', targetGroupToExpand);
+    console.log('[GitLabTree] Current nodes count:', Object.keys(nodes).length);
+    console.log('[GitLabTree] Available nodes:', Object.keys(nodes));
+    console.log('[GitLabTree] Checking if node exists:', !!nodes[targetGroupToExpand]);
+    
+    // Wait for the target node to be loaded
+    const checkAndExpand = async () => {
+      // If node doesn't exist yet, wait a bit and check again
+      if (!nodes[targetGroupToExpand]) {
+        console.log('[GitLabTree] Target node not found yet, waiting...');
+        // The node might be loaded after refresh, so we'll wait
+        setTimeout(() => {
+          if (nodes[targetGroupToExpand]) {
+            checkAndExpand();
+          } else {
+            console.log('[GitLabTree] Target node still not found after wait');
+            // Clear the target since we couldn't find it
+            if (onExpandComplete) {
+              onExpandComplete(targetGroupToExpand);
+            }
+          }
+        }, 1000);
+        return;
+      }
+      
+      console.log('[GitLabTree] Found target node, expanding path...');
+      
+      const nodesToExpand: string[] = [];
+      
+      // Find all parent nodes of the target
+      const findParents = (currentNodeId: string) => {
+        for (const [parentId, parentNode] of Object.entries(nodes)) {
+          if (parentNode.children && parentNode.children.includes(currentNodeId)) {
+            nodesToExpand.push(parentId);
+            findParents(parentId);
+          }
+        }
+      };
+      
+      findParents(targetGroupToExpand);
+      
+      // Add the target itself to expand list
+      nodesToExpand.push(targetGroupToExpand);
+      
+      console.log('[GitLabTree] Nodes to expand:', nodesToExpand);
+      
+      // Expand all nodes in the path
+      const newExpanded = [...new Set([...expanded, ...nodesToExpand])];
+      setExpanded(newExpanded);
+      
+      // Load children for nodes that need it
+      for (const nodeId of nodesToExpand) {
+        if (nodes[nodeId] && !nodes[nodeId].children) {
+          await loadChildren(nodeId);
+        }
+      }
+      
+      // Scroll to the target element
+      setTimeout(() => {
+        const targetElement = document.querySelector(`[itemId="${targetGroupToExpand}"]`);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          console.log('[GitLabTree] Scrolled to target element');
+        }
+        
+        // Notify parent that expansion is complete
+        if (onExpandComplete) {
+          onExpandComplete(targetGroupToExpand);
+        }
+      }, 500);
+    };
+    
+    checkAndExpand();
+  }, [targetGroupToExpand, refreshTrigger]); // Watch for targetGroupToExpand and refresh changes
 
   const loadRootNodes = async () => {
     try {
@@ -654,10 +761,13 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
               p: 0.5,
               pr: 1,
               borderRadius: 1,
-              backgroundColor: isDragOver && isDropTarget ? 'action.hover' : 
+              backgroundColor: highlightedNodeId === nodeId ? 'rgba(25, 118, 210, 0.15)' :
+                              isDragOver && isDropTarget ? 'action.hover' : 
                               selectedNodeId === nodeId ? 'action.selected' : 'transparent',
-              border: isDragOver && isDropTarget ? '2px dashed' : '2px solid transparent',
-              borderColor: isDragOver && isDropTarget ? 'primary.main' : 'transparent',
+              border: highlightedNodeId === nodeId ? '2px solid' :
+                     isDragOver && isDropTarget ? '2px dashed' : '2px solid transparent',
+              borderColor: highlightedNodeId === nodeId ? 'primary.main' :
+                          isDragOver && isDropTarget ? 'primary.main' : 'transparent',
               cursor: 'pointer',
               '&:hover': {
                 backgroundColor: 'action.hover',
@@ -818,7 +928,11 @@ export const GitLabTree: React.FC<GitLabTreeProps> = ({
           </Box>
         }
       >
-        {node.children && isExpanded ? node.children.map(childId => renderTree(childId, depth + 1)) : null}
+        {node.children && isExpanded ? node.children.map((childId, index) => (
+          <React.Fragment key={`${nodeId}-child-${childId}-${index}`}>
+            {renderTree(childId, depth + 1)}
+          </React.Fragment>
+        )) : null}
       </TreeItem>
     );
   };
