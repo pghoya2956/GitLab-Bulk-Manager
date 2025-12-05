@@ -80,6 +80,8 @@ const BulkActionsCenterRedux: React.FC = () => {
     activeOperations,
     currentOperation,
     startOperation,
+    completeOperation,
+    failOperation,
   } = useBulkOperations();
 
   const { loading: dataLoading, error: dataError } = useGitLabData();
@@ -184,20 +186,12 @@ const BulkActionsCenterRedux: React.FC = () => {
     }
   };
 
-  // Handle drag and drop transfer
+  // Handle drag and drop transfer (simple transfer without progress dialog)
   const handleDragDropTransfer = async (targetGroup: any, draggedItems: any[]) => {
     // Extract numeric ID from target group
     const targetNamespaceId = targetGroup.id.replace(/^group-/, '');
 
     try {
-      startOperation({
-        type: 'transfer',
-        status: 'running',
-        progress: 0,
-        total: draggedItems.length,
-        items: draggedItems,
-      });
-
       const response = await bulkAPI.bulkTransfer(draggedItems, targetNamespaceId);
 
       addHistoryAction({

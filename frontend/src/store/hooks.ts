@@ -63,18 +63,36 @@ export const useHistory = () => {
 export const useBulkOperations = () => {
   const dispatch = useAppDispatch();
   const bulkOperations = useAppSelector(state => state.bulkOperations);
-  
+
   const startOperation = useCallback((operation: any) => {
     dispatch({ type: 'bulkOperations/startOperation', payload: operation });
   }, [dispatch]);
-  
+
   const updateProgress = useCallback((id: string, progress: number) => {
-    dispatch({ 
-      type: 'bulkOperations/updateOperationProgress', 
-      payload: { id, progress } 
+    dispatch({
+      type: 'bulkOperations/updateOperationProgress',
+      payload: { id, progress }
     });
   }, [dispatch]);
-  
+
+  const completeOperation = useCallback((id: string, result?: any) => {
+    dispatch({
+      type: 'bulkOperations/completeOperation',
+      payload: { id, result }
+    });
+  }, [dispatch]);
+
+  const failOperation = useCallback((id: string, error: string) => {
+    dispatch({
+      type: 'bulkOperations/failOperation',
+      payload: { id, error }
+    });
+  }, [dispatch]);
+
+  const clearCurrentOperation = useCallback(() => {
+    dispatch({ type: 'bulkOperations/setCurrentOperation', payload: null });
+  }, [dispatch]);
+
   return {
     activeOperations: bulkOperations.activeOperations,
     currentOperation: bulkOperations.currentOperation,
@@ -82,6 +100,9 @@ export const useBulkOperations = () => {
     error: bulkOperations.error,
     startOperation,
     updateProgress,
+    completeOperation,
+    failOperation,
+    clearCurrentOperation,
   };
 };
 
