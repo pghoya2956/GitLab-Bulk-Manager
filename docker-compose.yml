@@ -1,40 +1,44 @@
-version: '3.8'
+# Development environment with hot reload
 
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: gitlab-bulk-manager-backend
+    image: node:20-alpine
+    container_name: gitlab-bulk-manager-backend-dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
     ports:
-      - "4050:4000"
+      - '4050:4050'
     environment:
       - NODE_ENV=development
-      - PORT=4000
-      - SESSION_SECRET=${SESSION_SECRET:-development-secret}
+      - PORT=4050
+      - SESSION_SECRET=${SESSION_SECRET:-development-secret-change-in-production}
       - FRONTEND_URL=http://localhost:3030
       - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=debug
+      - GITLAB_API_URL=https://gitlab.com
     depends_on:
       - redis
     volumes:
       - ./backend:/app
-      - /app/node_modules
+      - backend_modules:/app/node_modules
     networks:
       - gitlab-bulk-manager
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: gitlab-bulk-manager-frontend
+    image: node:20-alpine
+    container_name: gitlab-bulk-manager-frontend-dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3030"
     ports:
-      - "3030:80"
+      - '3030:3030'
+    environment:
+      - VITE_API_URL=http://localhost:4050
     depends_on:
       - backend
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend_modules:/app/node_modules
     networks:
       - gitlab-bulk-manager
     restart: unless-stopped
@@ -43,7 +47,7 @@ services:
     image: redis:7-alpine
     container_name: gitlab-bulk-manager-redis
     ports:
-      - "6380:6379"
+      - '6380:6379'
     volumes:
       - redis-data:/data
     networks:
@@ -51,10 +55,11 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
 
-
 networks:
   gitlab-bulk-manager:
     driver: bridge
 
 volumes:
   redis-data:
+  backend_modules:
+  frontend_modules:
