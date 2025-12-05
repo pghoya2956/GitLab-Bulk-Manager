@@ -57,7 +57,7 @@ async function createSubgroupsRecursive(req, groups, parentId, parentPath, {
   continueOnError,
 }) {
   console.log('createSubgroupsRecursive called with:', { parentId, parentPath, groupsCount: groups.length });
-  
+
   for (const group of groups) {
     results.total++;
     console.log('Processing group:', { name: group.name, path: group.path, parentId });
@@ -179,7 +179,7 @@ router.post('/subgroups', async (req, res) => {
       parentPath,
       subgroupsCount: subgroups.length,
       defaultSettings,
-      options: { apiDelay, skipExisting, continueOnError }
+      options: { apiDelay, skipExisting, continueOnError },
     });
 
     await createSubgroupsRecursive(req, subgroups, parentId, parentPath, {
@@ -718,17 +718,46 @@ router.post('/transfer', async (req, res) => {
     }
 
     for (const item of items) {
+      const numericId = extractNumericId(item.id);
+      const numericTargetNamespaceId = extractNumericId(targetNamespaceId);
+
+      if (!numericId) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: 'Invalid ID',
+        });
+        continue;
+      }
+
       try {
+        console.log(`[Transfer] Processing item:`, {
+          id: item.id,
+          numericId,
+          name: item.name,
+          type: item.type,
+          targetNamespaceId: numericTargetNamespaceId
+        });
+
         if (item.type === 'project') {
-          // Transfer project
-          await gitlabRequest(req, 'PUT', `/projects/${item.id}/transfer`, {
-            namespace_id: targetNamespaceId
-          });
+          // Transfer project - GitLab expects 'namespace' parameter, not 'namespace_id'
+          const transferData = {
+            namespace: numericTargetNamespaceId,
+          };
+          console.log(`[Transfer] Calling PUT /projects/${numericId}/transfer with:`, transferData);
+
+          const result = await gitlabRequest(req, 'PUT', `/projects/${numericId}/transfer`, transferData);
+          console.log(`[Transfer] Project ${numericId} transfer result:`, result?.data || result);
         } else if (item.type === 'group') {
           // Transfer group
-          await gitlabRequest(req, 'POST', `/groups/${item.id}/transfer`, {
-            group_id: targetNamespaceId
-          });
+          const transferData = {
+            group_id: numericTargetNamespaceId,
+          };
+          console.log(`[Transfer] Calling POST /groups/${numericId}/transfer with:`, transferData);
+
+          const result = await gitlabRequest(req, 'POST', `/groups/${numericId}/transfer`, transferData);
+          console.log(`[Transfer] Group ${numericId} transfer result:`, result?.data || result);
         } else {
           throw new Error('Invalid item type. Must be "project" or "group"');
         }
@@ -769,11 +798,23 @@ router.post('/transfer', async (req, res) => {
   }
 });
 
+// Helper: Extract numeric ID from string like "project-123" or "group-456"
+function extractNumericId(id) {
+  if (typeof id === 'number') return id;
+  if (typeof id === 'string') {
+    // Handle "project-123" or "group-456" format
+    const match = id.match(/(?:project-|group-)?(\d+)$/);
+    return match ? parseInt(match[1], 10) : null;
+  }
+  return null;
+}
+
 // Bulk Archive
 router.post('/archive', async (req, res) => {
   try {
     const { items } = req.body;
-    
+    console.log('[ARCHIVE] Received items:', JSON.stringify(items, null, 2));
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'items array is required' });
     }
@@ -781,197 +822,78 @@ router.post('/archive', async (req, res) => {
     const results = {
       success: [],
       failed: [],
-      total: items.length
+      total: items.length,
     };
 
     for (const item of items) {
+      console.log('[ARCHIVE] Processing item:', item.id, 'type:', item.type);
       if (item.type !== 'project') {
+        console.log('[ARCHIVE] Skipping non-project:', item.id);
         results.failed.push({
           id: item.id,
           name: item.name,
           type: item.type,
-          error: 'Only projects can be archived'
+          error: 'Only projects can be archived',
+        });
+        continue;
+      }
+
+      const numericId = extractNumericId(item.id);
+      console.log('[ARCHIVE] Extracted numericId:', numericId, 'from:', item.id);
+      if (!numericId) {
+        console.log('[ARCHIVE] Invalid ID, skipping:', item.id);
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: 'Invalid project ID',
         });
         continue;
       }
 
       try {
-        await gitlabRequest(req, 'PUT', `/projects/${item.id}`, { archived: true });
+        console.log('[ARCHIVE] Archiving project:', numericId);
+        // GitLab API uses POST /projects/:id/archive endpoint, not PUT with archived param
+        await gitlabRequest(req, 'POST', `/projects/${numericId}/archive`);
+        console.log('[ARCHIVE] Successfully archived:', numericId);
         results.success.push({
           id: item.id,
           name: item.name,
-          type: item.type
+          type: item.type,
         });
         await delay(API_RATE_LIMIT.DEFAULT_DELAY);
       } catch (error) {
+        console.log('[ARCHIVE] Error archiving:', numericId, error.response?.data?.message || error.message);
         results.failed.push({
           id: item.id,
           name: item.name,
           type: item.type,
-          error: error.response?.data?.message || error.message
+          error: error.response?.data?.message || error.message,
         });
       }
     }
 
+    console.log('[ARCHIVE] Final results:', JSON.stringify(results, null, 2));
     res.json({
       success: true,
       results,
       summary: {
         total: results.total,
         success: results.success.length,
-        failed: results.failed.length
-      }
+        failed: results.failed.length,
+      },
     });
 
   } catch (error) {
     res.status(500).json({
       error: 'Failed to archive items',
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
     });
   }
 });
 
 // Bulk Unarchive
 router.post('/unarchive', async (req, res) => {
-  try {
-    const { items } = req.body;
-    
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'items array is required' });
-    }
-
-    const results = {
-      success: [],
-      failed: [],
-      total: items.length
-    };
-
-    for (const item of items) {
-      if (item.type !== 'project') {
-        results.failed.push({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          error: 'Only projects can be unarchived'
-        });
-        continue;
-      }
-
-      try {
-        await gitlabRequest(req, 'PUT', `/projects/${item.id}`, { archived: false });
-        results.success.push({
-          id: item.id,
-          name: item.name,
-          type: item.type
-        });
-        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
-      } catch (error) {
-        results.failed.push({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          error: error.response?.data?.message || error.message
-        });
-      }
-    }
-
-    res.json({
-      success: true,
-      results,
-      summary: {
-        total: results.total,
-        success: results.success.length,
-        failed: results.failed.length
-      }
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to unarchive items',
-      message: error.response?.data?.message || error.message
-    });
-  }
-});
-
-// Bulk Clone
-router.post('/clone', async (req, res) => {
-  try {
-    const { items, suffix = '_copy' } = req.body;
-    
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'items array is required' });
-    }
-
-    const results = {
-      success: [],
-      failed: [],
-      total: items.length
-    };
-
-    for (const item of items) {
-      try {
-        if (item.type === 'project') {
-          const project = await gitlabRequest(req, 'GET', `/projects/${item.id}`);
-          const newProject = await gitlabRequest(req, 'POST', '/projects', {
-            name: project.name + suffix,
-            path: project.path + suffix.toLowerCase().replace(/[^a-z0-9-]/g, ''),
-            namespace_id: project.namespace.id,
-            visibility: project.visibility,
-            description: project.description
-          });
-          results.success.push({
-            id: newProject.id,
-            name: newProject.name,
-            type: 'project',
-            original_id: item.id
-          });
-        } else {
-          const group = await gitlabRequest(req, 'GET', `/groups/${item.id}`);
-          const newGroup = await gitlabRequest(req, 'POST', '/groups', {
-            name: group.name + suffix,
-            path: group.path + suffix.toLowerCase().replace(/[^a-z0-9-]/g, ''),
-            parent_id: group.parent_id,
-            visibility: group.visibility,
-            description: group.description
-          });
-          results.success.push({
-            id: newGroup.id,
-            name: newGroup.name,
-            type: 'group',
-            original_id: item.id
-          });
-        }
-        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
-      } catch (error) {
-        results.failed.push({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          error: error.response?.data?.message || error.message
-        });
-      }
-    }
-
-    res.json({
-      success: true,
-      results,
-      summary: {
-        total: results.total,
-        success: results.success.length,
-        failed: results.failed.length
-      }
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to clone items',
-      message: error.response?.data?.message || error.message
-    });
-  }
-});
-
-// Bulk Delete
-router.post('/delete', async (req, res) => {
   try {
     const { items } = req.body;
 
@@ -985,21 +907,31 @@ router.post('/delete', async (req, res) => {
       total: items.length,
     };
 
-    // Sort items to delete projects before groups
-    const sortedItems = [...items].sort((a, b) => {
-      if (a.type === 'project' && b.type === 'group') {return -1;}
-      if (a.type === 'group' && b.type === 'project') {return 1;}
-      return 0;
-    });
+    for (const item of items) {
+      if (item.type !== 'project') {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: 'Only projects can be unarchived',
+        });
+        continue;
+      }
 
-    for (const item of sortedItems) {
+      const numericId = extractNumericId(item.id);
+      if (!numericId) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: 'Invalid project ID',
+        });
+        continue;
+      }
+
       try {
-        const endpoint = item.type === 'group'
-          ? `/groups/${item.id}`
-          : `/projects/${item.id}`;
-
-        await gitlabRequest(req, 'DELETE', endpoint);
-
+        // GitLab API uses POST /projects/:id/unarchive endpoint
+        await gitlabRequest(req, 'POST', `/projects/${numericId}/unarchive`);
         results.success.push({
           id: item.id,
           name: item.name,
@@ -1027,7 +959,170 @@ router.post('/delete', async (req, res) => {
     });
 
   } catch (error) {
-    // Error logged: 'Bulk delete error:', error);
+    res.status(500).json({
+      error: 'Failed to unarchive items',
+      message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
+// Bulk Clone
+router.post('/clone', async (req, res) => {
+  try {
+    const { items, suffix = '_copy' } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      total: items.length,
+    };
+
+    for (const item of items) {
+      const numericId = extractNumericId(item.id);
+      if (!numericId) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: 'Invalid ID',
+        });
+        continue;
+      }
+
+      try {
+        if (item.type === 'project') {
+          const project = await gitlabRequest(req, 'GET', `/projects/${numericId}`);
+          const newProject = await gitlabRequest(req, 'POST', '/projects', {
+            name: project.name + suffix,
+            path: project.path + suffix.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+            namespace_id: project.namespace.id,
+            visibility: project.visibility,
+            description: project.description,
+          });
+          results.success.push({
+            id: newProject.id,
+            name: newProject.name,
+            type: 'project',
+            original_id: item.id,
+          });
+        } else {
+          const group = await gitlabRequest(req, 'GET', `/groups/${numericId}`);
+          const newGroup = await gitlabRequest(req, 'POST', '/groups', {
+            name: group.name + suffix,
+            path: group.path + suffix.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+            parent_id: group.parent_id,
+            visibility: group.visibility,
+            description: group.description,
+          });
+          results.success.push({
+            id: newGroup.id,
+            name: newGroup.name,
+            type: 'group',
+            original_id: item.id,
+          });
+        }
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
+      } catch (error) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: error.response?.data?.message || error.message,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length,
+      },
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to clone items',
+      message: error.response?.data?.message || error.message,
+    });
+  }
+});
+
+// Bulk Delete
+router.post('/delete', async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      total: items.length,
+    };
+
+    // Sort items to delete projects before groups
+    const sortedItems = [...items].sort((a, b) => {
+      if (a.type === 'project' && b.type === 'group') {return -1;}
+      if (a.type === 'group' && b.type === 'project') {return 1;}
+      return 0;
+    });
+
+    for (const item of sortedItems) {
+      const numericId = extractNumericId(item.id);
+      if (!numericId) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: 'Invalid ID',
+        });
+        continue;
+      }
+
+      try {
+        const endpoint = item.type === 'group'
+          ? `/groups/${numericId}`
+          : `/projects/${numericId}`;
+
+        await gitlabRequest(req, 'DELETE', endpoint);
+
+        results.success.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+        });
+
+        await delay(API_RATE_LIMIT.DEFAULT_DELAY);
+      } catch (error) {
+        results.failed.push({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          error: error.response?.data?.message || error.message,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length,
+      },
+    });
+
+  } catch (error) {
     res.status(500).json({
       error: 'Failed to delete items',
       message: error.response?.data?.message || error.message,

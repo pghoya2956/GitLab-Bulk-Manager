@@ -15,7 +15,7 @@ router.get('/groups', async (req, res, next) => {
         const groups = JSON.parse(data);
         if (Array.isArray(groups)) {
           // Filter out groups that are marked for deletion or have deletion-related names
-          const filteredGroups = groups.filter(group => {
+          const filteredGroups = groups.filter((group) => {
             // Check for deletion markers
             if (group.marked_for_deletion_on || group.marked_for_deletion) {
               return false;
@@ -37,12 +37,12 @@ router.get('/groups', async (req, res, next) => {
             }
             return true;
           });
-          
+
           if (groups.length !== filteredGroups.length) {
             logger.info(`Filtered ${groups.length - filteredGroups.length} groups (marked for deletion or deletion_scheduled pattern)`);
             logger.info(`Original: ${groups.length} groups, After filter: ${filteredGroups.length} groups`);
-            const filtered = groups.filter(g => !filteredGroups.includes(g));
-            filtered.forEach(g => {
+            const filtered = groups.filter((g) => !filteredGroups.includes(g));
+            filtered.forEach((g) => {
               logger.info(`Filtered out: ${g.name} (${g.full_path})`);
             });
           }
@@ -66,7 +66,7 @@ router.get('/groups/:id/subgroups', async (req, res, next) => {
       const groups = JSON.parse(data);
       if (Array.isArray(groups)) {
         // Filter out groups that are marked for deletion or have deletion-related names
-        const filteredGroups = groups.filter(group => {
+        const filteredGroups = groups.filter((group) => {
           // Check for deletion markers
           if (group.marked_for_deletion_on || group.marked_for_deletion) {
             return false;
@@ -84,7 +84,7 @@ router.get('/groups/:id/subgroups', async (req, res, next) => {
           }
           return true;
         });
-        
+
         if (groups.length !== filteredGroups.length) {
           logger.debug(`Filtered ${groups.length - filteredGroups.length} subgroups (marked for deletion or deletion_scheduled pattern) from group ${req.params.id}`);
         }

@@ -10,7 +10,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.name === 'ValidationError') {
     status = 400;
     error = 'Validation Error';
-    message = Object.values(err.errors).map(e => e.message).join(', ');
+    message = Object.values(err.errors).map((e) => e.message).join(', ');
   } else if (err.name === 'CastError') {
     status = 400;
     error = 'Invalid ID';

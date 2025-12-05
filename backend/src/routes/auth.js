@@ -16,7 +16,6 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
-
     // Validate token by fetching user info
     const response = await axios.get(`${gitlabUrl}/api/v4/user`, {
       headers: {

@@ -36,23 +36,23 @@ const SUPPORTED_LANGUAGES = ['en', 'ko'];
 function extractFrontmatter(content) {
   const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
   const match = content.match(frontmatterRegex);
-  
+
   if (match) {
     const frontmatter = match[1];
     const body = match[2];
     const metadata = {};
-    
+
     // Parse simple YAML frontmatter
-    frontmatter.split('\n').forEach(line => {
-      const [key, value] = line.split(':').map(s => s.trim());
+    frontmatter.split('\n').forEach((line) => {
+      const [key, value] = line.split(':').map((s) => s.trim());
       if (key && value) {
         metadata[key] = value.replace(/^["']|["']$/g, '');
       }
     });
-    
+
     return { metadata, content: body };
   }
-  
+
   return { metadata: {}, content };
 }
 
@@ -74,7 +74,7 @@ router.get('/:lang/:docId', async (req, res) => {
     // Try language-specific file first
     let filePath = path.join(DOCS_PATH, lang, `${docId}.md`);
     let content = null;
-    
+
     try {
       content = await fs.readFile(filePath, 'utf-8');
     } catch (error) {
@@ -96,12 +96,12 @@ router.get('/:lang/:docId', async (req, res) => {
 
     // Extract frontmatter and return as JSON
     const { metadata, content: markdownContent } = extractFrontmatter(content);
-    
+
     res.json({
       content: markdownContent,
       metadata,
       language: lang,
-      path: `${lang}/${docId}`
+      path: `${lang}/${docId}`,
     });
   } catch (error) {
     logger.error('Documentation fetch error:', error);
@@ -113,16 +113,16 @@ router.get('/:lang/:docId', async (req, res) => {
 router.get('/:lang', async (req, res) => {
   try {
     const { lang } = req.params;
-    
+
     if (!SUPPORTED_LANGUAGES.includes(lang)) {
       return res.status(404).json({ error: 'Language not supported' });
     }
-    
+
     const docs = await Promise.all(
       ALLOWED_DOCS.map(async (id) => {
         const langPath = path.join(DOCS_PATH, lang, `${id}.md`);
         const rootPath = path.join(DOCS_PATH, `${id}.md`);
-        
+
         // Check if language-specific version exists
         let exists = false;
         try {
@@ -137,16 +137,16 @@ router.get('/:lang', async (req, res) => {
             exists = false;
           }
         }
-        
+
         return {
           id,
           path: `/api/docs/${lang}/${id}`,
-          exists
+          exists,
         };
-      })
+      }),
     );
-    
-    res.json(docs.filter(doc => doc.exists));
+
+    res.json(docs.filter((doc) => doc.exists));
   } catch (error) {
     logger.error('Documentation list error:', error);
     res.status(500).json({ error: 'Failed to list documentation' });
@@ -156,15 +156,15 @@ router.get('/:lang', async (req, res) => {
 // Get list of all available documentation
 router.get('/', async (req, res) => {
   try {
-    const languages = SUPPORTED_LANGUAGES.map(lang => ({
+    const languages = SUPPORTED_LANGUAGES.map((lang) => ({
       code: lang,
       name: lang === 'en' ? 'English' : '한국어',
-      path: `/api/docs/${lang}`
+      path: `/api/docs/${lang}`,
     }));
-    
+
     res.json({
       languages,
-      documents: ALLOWED_DOCS
+      documents: ALLOWED_DOCS,
     });
   } catch (error) {
     logger.error('Documentation list error:', error);
