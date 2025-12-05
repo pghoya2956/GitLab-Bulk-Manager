@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import session from 'express-session';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
 
 import logger from './utils/logger.js';
@@ -21,16 +20,12 @@ import cicdRoutes from './routes/cicd.js';
 import issuesRoutes from './routes/issues.js';
 import { authenticateToken } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-import { setupWebSocket } from './services/websocket.js';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: corsConfig,
-});
 
 // Security middleware
 app.use(helmet());
@@ -80,15 +75,11 @@ app.use(notFoundHandler);
 // Error handling
 app.use(errorHandler);
 
-// Setup WebSocket
-setupWebSocket(io);
-
 // Start server
 const PORT = process.env.PORT || 4050;
 
 httpServer.listen(PORT, () => {
   logger.info(`Backend server running on port ${PORT}`);
-  logger.info('WebSocket server integrated on same port');
 });
 
 // Graceful shutdown
@@ -99,4 +90,4 @@ process.on('SIGTERM', () => {
   });
 });
 
-export { app, io };
+export { app };
