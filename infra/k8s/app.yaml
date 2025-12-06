@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/pghoya2956/gitlab-bulk-manager:1.0.6
+          image: ghcr.io/pghoya2956/gitlab-bulk-manager:1.0.8
           imagePullPolicy: Always
           ports:
             - containerPort: 80

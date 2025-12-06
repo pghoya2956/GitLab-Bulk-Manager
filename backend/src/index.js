@@ -16,6 +16,7 @@ import statsRoutes from './routes/stats.js';
 import permissionsRoutes from './routes/permissions.js';
 import docsRoutes from './routes/docs.js';
 import membersRoutes from './routes/members.js';
+import healthRoutes from './routes/health.js';
 import cicdRoutes from './routes/cicd.js';
 import issuesRoutes from './routes/issues.js';
 import { authenticateToken } from './middleware/auth.js';
@@ -63,6 +64,7 @@ app.use('/api/cicd', authenticateToken, cicdRoutes);
 app.use('/api/issues', authenticateToken, issuesRoutes);
 app.use('/api/gitlab/bulk', authenticateToken, bulkRoutes);
 app.use('/api/gitlab', authenticateToken, gitlabRoutes);
+app.use('/api/health', authenticateToken, healthRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
