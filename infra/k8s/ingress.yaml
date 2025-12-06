@@ -1,0 +1,43 @@
+---
+# Ingress - HTTPS access with wildcard certificate
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gitlab-bulk-manager
+  namespace: gitlab-bulk-manager
+  labels:
+    app.kubernetes.io/name: gitlab-bulk-manager
+    app.kubernetes.io/component: ingress
+  annotations:
+    # Ingress class
+    kubernetes.io/ingress.class: nginx
+    # SSL/TLS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Proxy settings
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    # Session affinity (sticky sessions for consistent backend)
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+    nginx.ingress.kubernetes.io/session-cookie-samesite: "Strict"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - gitlab-bulk-manager.heeho.net
+      secretName: wildcard.heeho.net
+  rules:
+    - host: gitlab-bulk-manager.heeho.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gitlab-bulk-manager
+                port:
+                  number: 80

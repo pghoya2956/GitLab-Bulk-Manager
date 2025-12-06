@@ -27,6 +27,12 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
+// Trust proxy (for secure cookies behind reverse proxy/load balancer)
+if (process.env.TRUST_PROXY === 'true' || process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+  logger.info('Trust proxy enabled');
+}
+
 // Security middleware
 app.use(helmet());
 app.use(cors(corsConfig));
