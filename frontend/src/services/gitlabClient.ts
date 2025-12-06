@@ -5,7 +5,8 @@ class GitLabClient {
   private client: AxiosInstance;
 
   constructor() {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4050';
+    // In production, use empty string for relative URLs
+    const apiUrl = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:4050');
     this.client = axios.create({
       baseURL: `${apiUrl}/api/gitlab`,
       withCredentials: true,

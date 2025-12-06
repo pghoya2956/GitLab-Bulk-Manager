@@ -14,8 +14,8 @@ RUN npm ci
 
 # Build frontend
 COPY frontend/ ./
-# Empty string since frontend already includes /api in paths
-ENV VITE_API_URL=
+# Frontend uses import.meta.env.PROD to detect production mode
+# No VITE_API_URL needed - it will use relative URLs in production
 RUN npm run build
 
 # ============================

@@ -1,7 +1,9 @@
 // Application constants and configuration
 
 // API configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4050';
+// In production, use empty string for relative URLs (same origin)
+// In development, use localhost:4050
+export const API_BASE_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:4050');
 export const API_TIMEOUT = 30000; // 30 seconds
 export const API_RETRY_COUNT = 3;
 export const API_RETRY_DELAY = 1000; // 1 second

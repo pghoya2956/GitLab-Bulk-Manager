@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4050';
+// In production, use empty string for relative URLs
+const API_BASE_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:4050');
 
 // Create axios instance
 const api = axios.create({

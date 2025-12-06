@@ -6,7 +6,8 @@
 import axios from 'axios';
 import { GitLabGroup, GitLabProject, GitLabUser } from '../types/gitlab';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4050';
+// In production, use empty string for relative URLs
+const API_BASE_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:4050');
 
 // Create axios instance for GitLab API
 const api = axios.create({
