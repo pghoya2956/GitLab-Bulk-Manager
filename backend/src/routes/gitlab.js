@@ -112,10 +112,20 @@ router.post('/groups/:id/transfer', gitlabProxy);
 
 // Projects endpoints
 router.get('/projects', async (req, res, next) => {
-  // Add archived=false to exclude archived projects by default
-  if (req.query.archived === undefined) {
+  // archived 파라미터 처리:
+  // - 없거나 undefined: 기본값 false (아카이브 제외)
+  // - 'false': 아카이브 제외
+  // - 'true': 아카이브만 표시
+  // - 'both' 또는 'all': 전체 표시 (archived 파라미터 제거)
+  const archived = req.query.archived;
+
+  if (archived === 'both' || archived === 'all') {
+    delete req.query.archived;
+  } else if (archived === undefined) {
     req.query.archived = false;
   }
+  // 그 외의 경우 ('true', 'false') 그대로 전달
+
   return gitlabProxy(req, res, next);
 });
 router.get('/projects/:id', gitlabProxy);

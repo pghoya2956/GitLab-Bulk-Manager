@@ -230,13 +230,17 @@ export const GroupProjectTree: React.FC<GroupProjectTreeProps> = ({
                 p: 0.5,
                 borderRadius: 1,
                 opacity: isDragging ? 0.5 : 1,
-                backgroundColor: isDragOver ? 'action.hover' : 'transparent',
+                backgroundColor: isSelected
+                  ? 'action.selected'
+                  : isDragOver
+                  ? 'action.hover'
+                  : 'transparent',
                 border: isDragOver ? '2px dashed' : '2px solid transparent',
                 borderColor: isDragOver ? 'primary.main' : 'transparent',
                 transition: 'all 0.2s ease',
-                cursor: 'grab',
-                '&:active': {
-                  cursor: 'grabbing',
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: isSelected ? 'action.selected' : 'action.hover',
                 },
               }}
               draggable
@@ -245,6 +249,21 @@ export const GroupProjectTree: React.FC<GroupProjectTreeProps> = ({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, node)}
               onDragEnd={handleDragEnd}
+              onClick={(e) => {
+                // 체크박스 클릭 시 이벤트 중복 방지
+                if ((e.target as HTMLElement).closest('.MuiCheckbox-root')) {
+                  return;
+                }
+                e.stopPropagation();
+                if (onItemToggle) {
+                  onItemToggle({
+                    id: node.id,
+                    name: node.name,
+                    type: node.type,
+                    full_path: node.full_path,
+                  });
+                }
+              }}
             >
               <Checkbox
                 checked={isSelected}

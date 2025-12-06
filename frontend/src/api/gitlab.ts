@@ -58,16 +58,25 @@ export const gitlabAPI = {
 
   /**
    * Fetch all projects (paginated, returns all pages)
+   * @param options.includeArchived - 'false' (default), 'true', or 'both'
    */
-  getProjects: async (): Promise<GitLabProject[]> => {
+  getProjects: async (options?: { includeArchived?: 'false' | 'true' | 'both' }): Promise<GitLabProject[]> => {
     const allProjects: GitLabProject[] = [];
     let page = 1;
     const perPage = 100;
 
     while (true) {
-      const response = await api.get<GitLabProject[]>('/projects', {
-        params: { per_page: perPage, page, membership: true },
-      });
+      const params: Record<string, any> = { per_page: perPage, page, membership: true };
+
+      // archived 파라미터 설정
+      if (options?.includeArchived === 'both') {
+        params.archived = 'both';
+      } else if (options?.includeArchived === 'true') {
+        params.archived = 'true';
+      }
+      // 'false' 또는 undefined는 백엔드에서 기본값 처리
+
+      const response = await api.get<GitLabProject[]>('/projects', { params });
 
       allProjects.push(...response.data);
 

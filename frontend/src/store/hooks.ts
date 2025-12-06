@@ -125,6 +125,7 @@ export const useGitLabData = () => {
     projects: gitlab.projects,
     loading: gitlab.loading,
     error: gitlab.error,
+    showArchived: gitlab.showArchived,
   };
 };
 

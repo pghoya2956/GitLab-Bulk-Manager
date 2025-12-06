@@ -13,8 +13,6 @@ import {
   ListItemText,
   ListItemIcon,
   IconButton,
-  Divider,
-  Button,
   Chip,
 } from '@mui/material';
 import {
@@ -23,8 +21,6 @@ import {
   Unarchive as UnarchiveIcon,
   ContentCopy as CloneIcon,
   DriveFileMove as TransferIcon,
-  Undo as UndoIcon,
-  Redo as RedoIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
 
@@ -42,30 +38,16 @@ interface ActionHistorySidebarProps {
   open?: boolean;
   onClose?: () => void;
   actions?: HistoryAction[];
-  onUndo?: () => void;
-  onRedo?: () => void;
-  canUndo?: boolean;
-  canRedo?: boolean;
   // Legacy props from BulkActionsCenter
   history?: HistoryAction[];
-  runningCount?: number;
-  onClear?: () => void;
-  onRefresh?: () => void;
 }
 
 export const ActionHistorySidebar: React.FC<ActionHistorySidebarProps> = ({
   open = false,
   onClose = () => {},
   actions,
-  onUndo = () => {},
-  onRedo = () => {},
-  canUndo = false,
-  canRedo = false,
   // Legacy props
   history,
-  runningCount: _runningCount,
-  onClear: _onClear,
-  onRefresh: _onRefresh,
 }) => {
   // Use history if actions not provided (backward compatibility)
   const actionList = actions || history || [];
@@ -112,30 +94,6 @@ export const ActionHistorySidebar: React.FC<ActionHistorySidebarProps> = ({
           </IconButton>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<UndoIcon />}
-            onClick={onUndo}
-            disabled={!canUndo}
-            size="small"
-            fullWidth
-          >
-            Undo
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<RedoIcon />}
-            onClick={onRedo}
-            disabled={!canRedo}
-            size="small"
-            fullWidth
-          >
-            Redo
-          </Button>
-        </Box>
-
-        <Divider sx={{ mb: 2 }} />
 
         {actionList.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>

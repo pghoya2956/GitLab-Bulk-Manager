@@ -38,11 +38,15 @@ export interface ActionCard {
   category: 'resource' | 'settings' | 'advanced';
   description: string;
   implemented: boolean;
+  requiresProjects?: boolean;  // 프로젝트 필수
+  requiresGroups?: boolean;    // 그룹 필수
 }
 
 interface BulkActionCardsProps {
   onActionClick?: (actionId: string) => void;
   selectedCount?: number;
+  selectedProjectsCount?: number;
+  selectedGroupsCount?: number;
 }
 
 // 액션 카드 정의를 상수로 분리
@@ -92,6 +96,7 @@ export const ACTION_CARDS: ActionCard[] = [
     category: 'resource',
     description: '프로젝트 아카이브',
     implemented: true,
+    requiresProjects: true,
   },
   {
     id: 'unarchive',
@@ -101,6 +106,7 @@ export const ACTION_CARDS: ActionCard[] = [
     category: 'resource',
     description: '아카이브 해제',
     implemented: true,
+    requiresProjects: true,
   },
   // Settings & Configuration
   {
@@ -129,6 +135,7 @@ export const ACTION_CARDS: ActionCard[] = [
     category: 'settings',
     description: '브랜치 보호/MR 승인 규칙',
     implemented: true,
+    requiresProjects: true,
   },
   {
     id: 'cicd',
@@ -138,6 +145,7 @@ export const ACTION_CARDS: ActionCard[] = [
     category: 'settings',
     description: '파이프라인 설정 동기화',
     implemented: true,
+    requiresProjects: true,
   },
   // Advanced Features
   {
@@ -166,6 +174,7 @@ export const ACTION_CARDS: ActionCard[] = [
     category: 'advanced',
     description: '이슈 및 MR 관리',
     implemented: true,
+    requiresProjects: true,
   },
   {
     id: 'webhooks',
@@ -187,6 +196,8 @@ const CATEGORY_TITLES = {
 export const BulkActionCards: React.FC<BulkActionCardsProps> = ({
   onActionClick,
   selectedCount = 0,
+  selectedProjectsCount = 0,
+  selectedGroupsCount = 0,
 }) => {
   // 카테고리별로 카드 그룹화
   const cardsByCategory = ACTION_CARDS.reduce((acc, card) => {
@@ -195,57 +206,78 @@ export const BulkActionCards: React.FC<BulkActionCardsProps> = ({
     return acc;
   }, {} as Record<string, ActionCard[]>);
 
-  const renderCard = (card: ActionCard) => (
-    <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={card.id}>
-      <Card
-        sx={{
-          height: '100%',
-          opacity: card.implemented ? 1 : 0.5,
-          transition: 'all 0.3s',
-          '&:hover': card.implemented ? {
-            transform: 'translateY(-4px)',
-            boxShadow: 3,
-          } : {},
-        }}
-      >
-        <CardActionArea
-          onClick={() => card.implemented && onActionClick?.(card.id)}
-          disabled={!card.implemented || (selectedCount === 0 && card.id !== 'create')}
-          sx={{ height: '100%' }}
+  // 비활성화 상태 및 이유 계산
+  const getDisabledState = (card: ActionCard): { disabled: boolean; reason: string | null } => {
+    if (!card.implemented) {
+      return { disabled: true, reason: '준비중' };
+    }
+    if (card.id === 'create') {
+      return { disabled: false, reason: null };
+    }
+    if (card.requiresProjects && selectedProjectsCount === 0) {
+      return { disabled: true, reason: '프로젝트 선택 필요' };
+    }
+    if (card.requiresGroups && selectedGroupsCount === 0) {
+      return { disabled: true, reason: '그룹 선택 필요' };
+    }
+    if (selectedCount === 0) {
+      return { disabled: true, reason: '항목 선택 필요' };
+    }
+    return { disabled: false, reason: null };
+  };
+
+  const renderCard = (card: ActionCard) => {
+    const { disabled, reason } = getDisabledState(card);
+
+    return (
+      <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={card.id}>
+        <Card
+          sx={{
+            height: '100%',
+            opacity: disabled ? 0.5 : 1,
+            transition: 'all 0.3s',
+            '&:hover': !disabled ? {
+              transform: 'translateY(-4px)',
+              boxShadow: 3,
+            } : {},
+          }}
         >
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Box
-                sx={{
-                  color: card.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  mr: 2,
-                }}
-              >
-                {card.icon}
+          <CardActionArea
+            onClick={() => !disabled && onActionClick?.(card.id)}
+            disabled={disabled}
+            sx={{ height: '100%' }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Box
+                  sx={{
+                    color: card.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    mr: 2,
+                  }}
+                >
+                  {card.icon}
+                </Box>
+                <Typography variant="h6">{card.title}</Typography>
               </Box>
-              <Typography variant="h6">{card.title}</Typography>
-            </Box>
-            <Typography variant="body2" color="text.secondary">
-              {card.description}
-            </Typography>
-            {!card.implemented && (
-              <Chip label="준비중" size="small" sx={{ mt: 1 }} />
-            )}
-            {card.implemented && selectedCount === 0 && card.id !== 'create' && (
-              <Chip 
-                label="항목 선택 필요" 
-                size="small" 
-                color="warning" 
-                sx={{ mt: 1 }} 
-              />
-            )}
-          </CardContent>
-        </CardActionArea>
-      </Card>
-    </Grid>
-  );
+              <Typography variant="body2" color="text.secondary">
+                {card.description}
+              </Typography>
+              {reason && (
+                <Chip
+                  label={reason}
+                  size="small"
+                  color={reason === '준비중' ? 'default' : 'warning'}
+                  sx={{ mt: 1 }}
+                />
+              )}
+            </CardContent>
+          </CardActionArea>
+        </Card>
+      </Grid>
+    );
+  };
 
   const renderCategory = (category: keyof typeof CATEGORY_TITLES) => {
     const cards = cardsByCategory[category];

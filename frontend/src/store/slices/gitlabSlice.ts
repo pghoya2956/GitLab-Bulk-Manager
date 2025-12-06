@@ -1,12 +1,15 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { GitLabGroup, GitLabProject, GitLabUser } from '../../types/gitlab';
 
+export type ArchivedFilter = 'false' | 'true' | 'both';
+
 export interface GitLabState {
   groups: GitLabGroup[];
   projects: GitLabProject[];
   users: GitLabUser[];
   loading: boolean;
   error: string | null;
+  showArchived: ArchivedFilter;
 }
 
 const initialState: GitLabState = {
@@ -15,6 +18,7 @@ const initialState: GitLabState = {
   users: [],
   loading: false,
   error: null,
+  showArchived: 'false',
 };
 
 const gitlabSlice = createSlice({
@@ -36,8 +40,11 @@ const gitlabSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
+    setShowArchived: (state, action: PayloadAction<ArchivedFilter>) => {
+      state.showArchived = action.payload;
+    },
   },
 });
 
-export const { setGroups, setProjects, setUsers, setLoading, setError } = gitlabSlice.actions;
+export const { setGroups, setProjects, setUsers, setLoading, setError, setShowArchived } = gitlabSlice.actions;
 export default gitlabSlice.reducer;

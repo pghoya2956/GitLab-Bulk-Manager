@@ -3,25 +3,21 @@ import {
   Box,
   Paper,
   Typography,
-  Button,
   Chip,
   IconButton,
   Tooltip,
   Badge,
-  Divider,
   Alert,
   Snackbar,
   CircularProgress,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
 } from '@mui/material';
 import {
-  Delete as DeleteIcon,
-  Archive as ArchiveIcon,
-  ContentCopy as CloneIcon,
-  DriveFileMove as TransferIcon,
   Refresh as RefreshIcon,
   ClearAll as ClearAllIcon,
-  Undo as UndoIcon,
-  Redo as RedoIcon,
   History as HistoryIcon,
 } from '@mui/icons-material';
 
@@ -33,7 +29,7 @@ import {
   useBulkOperations,
   useGitLabData,
 } from '../store/hooks';
-import { setGroups, setProjects, setLoading, setError } from '../store/slices/gitlabSlice';
+import { setGroups, setProjects, setLoading, setError, setShowArchived, ArchivedFilter } from '../store/slices/gitlabSlice';
 
 // Components
 import { GroupProjectTree } from '../components/tree/GroupProjectTree';
@@ -70,19 +66,14 @@ const BulkActionsCenterRedux: React.FC = () => {
 
   const {
     actions: historyActions,
-    canUndo,
-    canRedo,
     addHistoryAction,
-    undo,
-    redo,
   } = useHistory();
 
   const {
-    activeOperations,
     currentOperation,
   } = useBulkOperations();
 
-  const { loading: dataLoading, error: dataError } = useGitLabData();
+  const { loading: dataLoading, error: dataError, showArchived } = useGitLabData();
 
   // Local state for dialogs
   const [dialogs, setDialogs] = useState({
@@ -110,7 +101,7 @@ const BulkActionsCenterRedux: React.FC = () => {
     try {
       const [groupsData, projectsData] = await Promise.all([
         gitlabAPI.getGroups(),
-        gitlabAPI.getProjects(),
+        gitlabAPI.getProjects({ includeArchived: showArchived }),
       ]);
 
       dispatch(setGroups(groupsData));
@@ -121,11 +112,16 @@ const BulkActionsCenterRedux: React.FC = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  }, [dispatch]);
+  }, [dispatch, showArchived]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Handle archived filter change
+  const handleArchivedFilterChange = (value: ArchivedFilter) => {
+    dispatch(setShowArchived(value));
+  };
 
   // Calculate counts
   const selectedGroups = selectedItems.filter(item => item.type === 'group');
@@ -222,9 +218,6 @@ const BulkActionsCenterRedux: React.FC = () => {
     }
   };
 
-  // Check if any operation is running
-  const isOperationRunning = activeOperations.length > 0;
-
   return (
     <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', position: 'relative' }}>
       {/* Left Panel - Tree View */}
@@ -251,6 +244,21 @@ const BulkActionsCenterRedux: React.FC = () => {
               </IconButton>
             </Tooltip>
           </Box>
+
+          {/* Archived Filter */}
+          <FormControl size="small" sx={{ mt: 1.5, minWidth: 180 }}>
+            <InputLabel id="archived-filter-label">프로젝트 필터</InputLabel>
+            <Select
+              labelId="archived-filter-label"
+              value={showArchived}
+              label="프로젝트 필터"
+              onChange={(e) => handleArchivedFilterChange(e.target.value as ArchivedFilter)}
+            >
+              <MenuItem value="false">활성 프로젝트만</MenuItem>
+              <MenuItem value="true">아카이브만</MenuItem>
+              <MenuItem value="both">전체 (활성 + 아카이브)</MenuItem>
+            </Select>
+          </FormControl>
 
           {/* Selection Info */}
           {selectedCount > 0 && (
@@ -307,104 +315,24 @@ const BulkActionsCenterRedux: React.FC = () => {
               Bulk Actions Center
             </Typography>
 
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              {/* History Controls */}
-              <Tooltip title="Undo">
-                <span>
-                  <IconButton onClick={undo} disabled={!canUndo} size="small">
-                    <UndoIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-
-              <Tooltip title="Redo">
-                <span>
-                  <IconButton onClick={redo} disabled={!canRedo} size="small">
-                    <RedoIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-
-              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-
-              {/* History Sidebar Toggle */}
-              <Tooltip title="Action History">
-                <IconButton onClick={() => setHistorySidebarOpen(!historySidebarOpen)} size="small">
-                  <Badge badgeContent={historyActions.length} color="primary">
-                    <HistoryIcon />
-                  </Badge>
-                </IconButton>
-              </Tooltip>
-            </Box>
+            {/* History Sidebar Toggle */}
+            <Tooltip title="Action History">
+              <IconButton onClick={() => setHistorySidebarOpen(!historySidebarOpen)} size="small">
+                <Badge badgeContent={historyActions.length} color="primary">
+                  <HistoryIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
           </Box>
         </Paper>
-
-        {/* Quick Action Buttons (shown when items selected) */}
-        {selectedCount > 0 && (
-          <Paper sx={{ p: 2, m: 2, mt: 2, mb: 0 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary' }}>
-              Quick Actions for {selectedCount} selected items
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-              <Button
-                variant="contained"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={() => openDialog('delete')}
-                disabled={isOperationRunning}
-                size="small"
-              >
-                Delete
-              </Button>
-
-              <Button
-                variant="contained"
-                startIcon={<TransferIcon />}
-                onClick={() => openDialog('transfer')}
-                disabled={isOperationRunning}
-                size="small"
-              >
-                Transfer
-              </Button>
-
-              <Button
-                variant="contained"
-                startIcon={<ArchiveIcon />}
-                onClick={() => openDialog('archive')}
-                disabled={isOperationRunning || selectedProjects.length === 0}
-                size="small"
-              >
-                Archive
-              </Button>
-
-              <Button
-                variant="outlined"
-                startIcon={<ArchiveIcon />}
-                onClick={() => openDialog('unarchive')}
-                disabled={isOperationRunning || selectedProjects.length === 0}
-                size="small"
-              >
-                Unarchive
-              </Button>
-
-              <Button
-                variant="contained"
-                startIcon={<CloneIcon />}
-                onClick={() => openDialog('clone')}
-                disabled={isOperationRunning}
-                size="small"
-              >
-                Clone
-              </Button>
-            </Box>
-          </Paper>
-        )}
 
         {/* Action Cards */}
         <Box sx={{ flex: 1, p: 2, overflow: 'auto' }}>
           <BulkActionCards
             onActionClick={handleActionClick}
             selectedCount={selectedCount}
+            selectedProjectsCount={selectedProjects.length}
+            selectedGroupsCount={selectedGroups.length}
           />
         </Box>
       </Box>
@@ -414,10 +342,6 @@ const BulkActionsCenterRedux: React.FC = () => {
         open={historySidebarOpen}
         onClose={() => setHistorySidebarOpen(false)}
         actions={historyActions as any[]}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={canUndo}
-        canRedo={canRedo}
       />
 
       {/* Dialogs */}
