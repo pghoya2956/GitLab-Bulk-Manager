@@ -14,7 +14,8 @@ RUN npm ci
 
 # Build frontend
 COPY frontend/ ./
-ENV VITE_API_URL=/api
+# Empty string since frontend already includes /api in paths
+ENV VITE_API_URL=
 RUN npm run build
 
 # ============================
