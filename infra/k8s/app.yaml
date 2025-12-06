@@ -56,6 +56,8 @@ spec:
                   key: REDIS_PASSWORD
             - name: REDIS_URL
               value: "redis://:$(REDIS_PASSWORD)@redis:6379"
+            - name: FRONTEND_URL
+              value: "https://gitlab-bulk-manager.heeho.net"
           resources:
             requests:
               memory: "128Mi"
