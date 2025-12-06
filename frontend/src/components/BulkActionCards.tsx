@@ -206,28 +206,28 @@ export const BulkActionCards: React.FC<BulkActionCardsProps> = ({
     return acc;
   }, {} as Record<string, ActionCard[]>);
 
-  // 비활성화 상태 및 이유 계산
-  const getDisabledState = (card: ActionCard): { disabled: boolean; reason: string | null } => {
-    if (!card.implemented) {
-      return { disabled: true, reason: '준비중' };
-    }
-    if (card.id === 'create') {
-      return { disabled: false, reason: null };
-    }
-    if (card.requiresProjects && selectedProjectsCount === 0) {
-      return { disabled: true, reason: '프로젝트 선택 필요' };
-    }
-    if (card.requiresGroups && selectedGroupsCount === 0) {
-      return { disabled: true, reason: '그룹 선택 필요' };
-    }
-    if (selectedCount === 0) {
-      return { disabled: true, reason: '항목 선택 필요' };
-    }
-    return { disabled: false, reason: null };
+  // 대상 타입 라벨 가져오기
+  const getTargetLabel = (card: ActionCard): string | null => {
+    if (!card.implemented) return null;
+    if (card.id === 'create') return null;
+    if (card.requiresProjects) return '프로젝트';
+    if (card.requiresGroups) return '그룹';
+    return '그룹 / 프로젝트';
+  };
+
+  // 비활성화 상태 계산
+  const isDisabled = (card: ActionCard): boolean => {
+    if (!card.implemented) return true;
+    if (card.id === 'create') return false;
+    if (card.requiresProjects && selectedProjectsCount === 0) return true;
+    if (card.requiresGroups && selectedGroupsCount === 0) return true;
+    if (selectedCount === 0) return true;
+    return false;
   };
 
   const renderCard = (card: ActionCard) => {
-    const { disabled, reason } = getDisabledState(card);
+    const disabled = isDisabled(card);
+    const targetLabel = getTargetLabel(card);
 
     return (
       <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={card.id}>
@@ -264,11 +264,14 @@ export const BulkActionCards: React.FC<BulkActionCardsProps> = ({
               <Typography variant="body2" color="text.secondary">
                 {card.description}
               </Typography>
-              {reason && (
+              {!card.implemented && (
+                <Chip label="준비중" size="small" sx={{ mt: 1 }} />
+              )}
+              {targetLabel && (
                 <Chip
-                  label={reason}
+                  label={targetLabel}
                   size="small"
-                  color={reason === '준비중' ? 'default' : 'warning'}
+                  variant="outlined"
                   sx={{ mt: 1 }}
                 />
               )}
