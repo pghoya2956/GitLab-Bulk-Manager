@@ -223,3 +223,8 @@ claude-flow
 claude-flow.bat
 claude-flow.ps1
 hive-mind-prompt-*.txt
+
+# Kubernetes secrets (NEVER commit actual secrets!)
+infra/k8s/secrets.yaml
+**/secrets.yaml
+!**/secrets.yaml.example

@@ -6,7 +6,8 @@ namespace: gitlab-bulk-manager
 
 resources:
   - namespace.yaml
-  - secrets.yaml
+  # secrets.yaml is NOT in git - create from secrets.yaml.example
+  # - secrets.yaml
   - tls-secret.yaml
   - redis.yaml
   - app.yaml
