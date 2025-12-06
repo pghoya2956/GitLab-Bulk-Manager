@@ -15,6 +15,8 @@ import {
   Stack,
   Collapse,
   ListItemIcon,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ExpandLess from '@mui/icons-material/ExpandLess';
@@ -91,6 +93,13 @@ export const Documentation: React.FC = () => {
   const [selectedDoc, setSelectedDoc] = useState<string>('README');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openCategories, setOpenCategories] = useState<string[]>(['getting-started']);
+  const [language, setLanguage] = useState<'ko' | 'en'>('ko');
+
+  const handleLanguageChange = (_: React.MouseEvent<HTMLElement>, newLanguage: 'ko' | 'en' | null) => {
+    if (newLanguage !== null) {
+      setLanguage(newLanguage);
+    }
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -112,16 +121,32 @@ export const Documentation: React.FC = () => {
   };
 
   const getDocPath = () => {
-    return `ko/${selectedDoc}`;
+    return `${language}/${selectedDoc}`;
   };
 
   const drawer = (
     <Box>
       <Toolbar>
-        <Stack spacing={2} sx={{ width: '100%' }}>
-          <Typography variant="h6" noWrap component="div">
-            문서
-          </Typography>
+        <Stack spacing={1} sx={{ width: '100%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6" noWrap component="div">
+              {language === 'ko' ? '문서' : 'Documentation'}
+            </Typography>
+            <ToggleButtonGroup
+              value={language}
+              exclusive
+              onChange={handleLanguageChange}
+              size="small"
+              sx={{ ml: 1 }}
+            >
+              <ToggleButton value="ko" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>
+                한국어
+              </ToggleButton>
+              <ToggleButton value="en" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>
+                English
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
         </Stack>
       </Toolbar>
       <Divider />
@@ -129,8 +154,8 @@ export const Documentation: React.FC = () => {
         {categories.map((category) => (
           <React.Fragment key={category.id}>
             <ListItemButton onClick={() => handleCategoryToggle(category.id)}>
-              <ListItemText 
-                primary={category.titleKo}
+              <ListItemText
+                primary={language === 'ko' ? category.titleKo : category.title}
                 primaryTypographyProps={{ fontWeight: 600 }}
               />
               {openCategories.includes(category.id) ? <ExpandLess /> : <ExpandMore />}
@@ -150,8 +175,8 @@ export const Documentation: React.FC = () => {
                           <ArticleIcon fontSize="small" />
                         </ListItemIcon>
                         <ListItemText
-                          primary={section.titleKo}
-                          secondary={section.descriptionKo}
+                          primary={language === 'ko' ? section.titleKo : section.title}
+                          secondary={language === 'ko' ? section.descriptionKo : section.description}
                           secondaryTypographyProps={{
                             variant: 'caption',
                             sx: { display: 'block', mt: 0.5 },

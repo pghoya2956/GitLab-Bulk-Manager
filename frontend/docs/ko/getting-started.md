@@ -210,25 +210,5 @@ graph LR
 
 애플리케이션을 실행한 후:
 
-1. **기능 탐색**: [기능 가이드](./features.md) 확인
-2. **아키텍처 학습**: [시스템 아키텍처](./architecture.md) 이해
-3. **개발 시작**: [개발 가이드](./development.md) 참조
-4. **테스트 작성**: [테스팅 가이드](./testing.md) 따르기
-
-## 🔄 빠른 네비게이션
-
-<div align="center">
-
-| ← 이전 | 홈 | 다음 → |
-|--------|-----|--------|
-| [문서 홈](./README.md) | [한국어 문서](./README.md) | [아키텍처](./architecture.md) |
-
-</div>
-
----
-
-<div align="center">
-
-**[🇺🇸 View English Version](../en/getting-started.md)**
-
-</div>
+1. **기능 탐색**: [기능 가이드](./features.md)에서 상세한 기능 설명 확인
+2. **문제 발생 시**: [문제 해결 가이드](./troubleshooting.md) 참조
