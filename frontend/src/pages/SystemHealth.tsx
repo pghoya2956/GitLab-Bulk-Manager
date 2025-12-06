@@ -434,8 +434,8 @@ export const SystemHealth: React.FC = () => {
   useEffect(() => {
     fetchData(true);
 
-    // 30초마다 자동 갱신
-    const interval = setInterval(() => fetchData(false), 30000);
+    // 3분마다 자동 갱신
+    const interval = setInterval(() => fetchData(false), 180000);
     return () => clearInterval(interval);
   }, [fetchData]);
 

@@ -50,7 +50,7 @@ export interface QuickHealth {
 }
 
 // Cache configuration
-const CACHE_TTL = 30 * 1000; // 30초
+const CACHE_TTL = 180 * 1000; // 3분
 
 interface CacheEntry<T> {
   data: T;
