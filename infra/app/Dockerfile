@@ -34,6 +34,9 @@ RUN cd backend && npm ci --only=production
 
 COPY backend/src ./backend/src
 
+# Copy documentation files for backend to serve
+COPY frontend/docs ./docs
+
 # Copy built frontend from builder stage
 COPY --from=frontend-builder /app/frontend/build ./frontend/build
 

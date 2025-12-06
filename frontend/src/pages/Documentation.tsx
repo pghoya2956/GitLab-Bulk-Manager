@@ -34,7 +34,7 @@ interface DocSection {
 }
 
 const docSections: DocSection[] = [
-  // Getting Started
+  // 시작하기
   {
     id: 'README',
     title: 'Overview',
@@ -51,32 +51,7 @@ const docSections: DocSection[] = [
     descriptionKo: '신규 사용자를 위한 빠른 시작 가이드',
     category: 'getting-started',
   },
-  // Architecture & Design
-  {
-    id: 'architecture',
-    title: 'Architecture',
-    titleKo: '아키텍처',
-    description: 'System architecture and design patterns',
-    descriptionKo: '시스템 아키텍처 및 설계 패턴',
-    category: 'architecture',
-  },
-  {
-    id: 'components',
-    title: 'Components',
-    titleKo: '컴포넌트',
-    description: 'UI component documentation',
-    descriptionKo: 'UI 컴포넌트 문서',
-    category: 'architecture',
-  },
-  {
-    id: 'api-integration',
-    title: 'API Integration',
-    titleKo: 'API 통합',
-    description: 'GitLab API integration guide',
-    descriptionKo: 'GitLab API 통합 가이드',
-    category: 'architecture',
-  },
-  // Features
+  // 기능 가이드
   {
     id: 'features',
     title: 'Features',
@@ -93,56 +68,21 @@ const docSections: DocSection[] = [
     descriptionKo: '사용자 권한 시각화',
     category: 'features',
   },
-  // Development & Testing
-  {
-    id: 'development',
-    title: 'Development',
-    titleKo: '개발',
-    description: 'Development setup and guidelines',
-    descriptionKo: '개발 설정 및 가이드라인',
-    category: 'development',
-  },
-  {
-    id: 'testing',
-    title: 'Testing',
-    titleKo: '테스팅',
-    description: 'Testing strategies and guidelines',
-    descriptionKo: '테스팅 전략 및 가이드라인',
-    category: 'development',
-  },
-  {
-    id: 'deployment',
-    title: 'Deployment',
-    titleKo: '배포',
-    description: 'Deployment and configuration guide',
-    descriptionKo: '배포 및 구성 가이드',
-    category: 'development',
-  },
-  // Reference
-  {
-    id: 'api-reference',
-    title: 'API Reference',
-    titleKo: 'API 레퍼런스',
-    description: 'Complete API endpoint documentation',
-    descriptionKo: '전체 API 엔드포인트 문서',
-    category: 'reference',
-  },
+  // 도움말
   {
     id: 'troubleshooting',
     title: 'Troubleshooting',
     titleKo: '문제 해결',
     description: 'Common issues and solutions',
     descriptionKo: '일반적인 문제와 해결책',
-    category: 'reference',
+    category: 'help',
   },
 ];
 
 const categories = [
   { id: 'getting-started', title: 'Getting Started', titleKo: '시작하기' },
-  { id: 'architecture', title: 'Architecture & Design', titleKo: '아키텍처 & 설계' },
-  { id: 'features', title: 'Features', titleKo: '기능' },
-  { id: 'development', title: 'Development & Testing', titleKo: '개발 & 테스팅' },
-  { id: 'reference', title: 'Reference', titleKo: '레퍼런스' },
+  { id: 'features', title: 'Features', titleKo: '기능 가이드' },
+  { id: 'help', title: 'Help', titleKo: '도움말' },
 ];
 
 export const Documentation: React.FC = () => {

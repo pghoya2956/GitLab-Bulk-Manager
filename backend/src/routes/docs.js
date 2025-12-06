@@ -11,21 +11,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Path to documentation files
-const DOCS_PATH = path.join(__dirname, '../../../frontend/docs');
+// In production: /app/docs, In development: frontend/docs
+const DOCS_PATH = process.env.NODE_ENV === 'production'
+  ? path.join(__dirname, '../../../docs')
+  : path.join(__dirname, '../../../frontend/docs');
 
-// Allowed documentation files for security
+// Allowed documentation files for security (user-facing docs only)
 const ALLOWED_DOCS = [
   'README',
   'getting-started',
   'features',
-  'architecture',
-  'components',
-  'api-integration',
-  'development',
-  'testing',
-  'deployment',
   'permission-tree',
-  'api-reference',
   'troubleshooting',
 ];
 
