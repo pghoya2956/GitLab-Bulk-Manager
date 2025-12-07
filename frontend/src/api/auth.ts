@@ -18,8 +18,13 @@ export const getAuthToken = (): string | null => {
 };
 
 export const getGitLabUrl = (): string | null => {
-  // This will be replaced with Redux selector
-  // For now, check localStorage (temporary)
+  // Try direct localStorage first (set by authSlice)
+  const directUrl = localStorage.getItem('gitlabUrl');
+  if (directUrl) {
+    return directUrl;
+  }
+
+  // Fallback to persist:auth (Redux Persist format)
   const persistedAuth = localStorage.getItem('persist:auth');
   if (persistedAuth) {
     try {
