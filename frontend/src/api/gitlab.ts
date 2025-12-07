@@ -5,6 +5,23 @@
 
 import axios from 'axios';
 import { GitLabGroup, GitLabProject, GitLabUser } from '../types/gitlab';
+import { getGitLabUrl } from './auth';
+
+/**
+ * Check if the GitLab instance is SaaS (gitlab.com)
+ * SaaS does not support some parameters like 'all_available'
+ */
+const isGitLabSaaS = (): boolean => {
+  const gitlabUrl = getGitLabUrl();
+  if (!gitlabUrl) return false;
+
+  try {
+    const url = new URL(gitlabUrl);
+    return url.hostname === 'gitlab.com' || url.hostname.endsWith('.gitlab.com');
+  } catch {
+    return false;
+  }
+};
 
 // In production, use empty string for relative URLs
 const API_BASE_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:4050');
@@ -39,9 +56,13 @@ export const gitlabAPI = {
     const perPage = 100;
 
     while (true) {
-      const response = await api.get<GitLabGroup[]>('/groups', {
-        params: { per_page: perPage, page, all_available: true },
-      });
+      const params: Record<string, any> = { per_page: perPage, page };
+      // all_available is only supported on self-managed GitLab
+      if (!isGitLabSaaS()) {
+        params.all_available = true;
+      }
+
+      const response = await api.get<GitLabGroup[]>('/groups', { params });
 
       allGroups.push(...response.data);
 
@@ -95,9 +116,13 @@ export const gitlabAPI = {
    * Get subgroups of a group
    */
   getSubgroups: async (groupId: number): Promise<GitLabGroup[]> => {
-    const response = await api.get<GitLabGroup[]>(`/groups/${groupId}/subgroups`, {
-      params: { per_page: 100, all_available: true },
-    });
+    const params: Record<string, any> = { per_page: 100 };
+    // all_available is only supported on self-managed GitLab
+    if (!isGitLabSaaS()) {
+      params.all_available = true;
+    }
+
+    const response = await api.get<GitLabGroup[]>(`/groups/${groupId}/subgroups`, { params });
     return response.data;
   },
 
