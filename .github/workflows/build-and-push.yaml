@@ -2,6 +2,8 @@ name: Build and Push
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*.*.*'
 
@@ -22,6 +24,7 @@ jobs:
           fetch-depth: 0
 
       - name: Verify tag is on main branch
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           git fetch origin main
           if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
@@ -46,8 +49,12 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest
+            # main 브랜치 푸시: main 태그
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            # 버전 태그 푸시: x.y.z 형식 (v 제거)
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            # 버전 태그 푸시: latest도 함께
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
