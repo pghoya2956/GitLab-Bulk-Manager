@@ -29,7 +29,7 @@ import {
   useBulkOperations,
   useGitLabData,
 } from '../store/hooks';
-import { setGroups, setProjects, setLoading, setError, setShowArchived, ArchivedFilter } from '../store/slices/gitlabSlice';
+import { setGroups, setProjects, setLoading, setError, setShowArchived, resetLazyLoadState, ArchivedFilter } from '../store/slices/gitlabSlice';
 
 // Components
 import { GroupProjectTree } from '../components/tree/GroupProjectTree';
@@ -93,26 +93,27 @@ const BulkActionsCenterRedux: React.FC = () => {
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'warning' | 'info' });
 
-  // Fetch GitLab data on mount
+  // Fetch GitLab data on mount - only top-level groups for faster initial load
   const fetchData = useCallback(async () => {
     dispatch(setLoading(true));
     dispatch(setError(null));
+    dispatch(resetLazyLoadState());
 
     try {
-      const [groupsData, projectsData] = await Promise.all([
-        gitlabAPI.getGroups(),
-        gitlabAPI.getProjects({ includeArchived: showArchived }),
-      ]);
+      // Load only top-level groups for faster initial load
+      // Subgroups and projects will be loaded lazily when expanding groups
+      const groupsData = await gitlabAPI.getTopLevelGroups();
 
       dispatch(setGroups(groupsData));
-      dispatch(setProjects(projectsData));
+      // Projects will be loaded lazily per group
+      dispatch(setProjects([]));
     } catch (err: any) {
       console.error('Failed to fetch GitLab data:', err);
       dispatch(setError(err.message || 'Failed to fetch GitLab data'));
     } finally {
       dispatch(setLoading(false));
     }
-  }, [dispatch, showArchived]);
+  }, [dispatch]);
 
   useEffect(() => {
     fetchData();

@@ -10,6 +10,9 @@ export interface GitLabState {
   loading: boolean;
   error: string | null;
   showArchived: ArchivedFilter;
+  // Lazy loading state
+  loadedGroupChildren: Record<number, boolean>; // groupId -> children loaded
+  loadingGroupChildren: Record<number, boolean>; // groupId -> currently loading
 }
 
 const initialState: GitLabState = {
@@ -19,6 +22,8 @@ const initialState: GitLabState = {
   loading: false,
   error: null,
   showArchived: 'false',
+  loadedGroupChildren: {},
+  loadingGroupChildren: {},
 };
 
 const gitlabSlice = createSlice({
@@ -43,8 +48,45 @@ const gitlabSlice = createSlice({
     setShowArchived: (state, action: PayloadAction<ArchivedFilter>) => {
       state.showArchived = action.payload;
     },
+    // Lazy loading actions
+    setLoadingGroupChildren: (state, action: PayloadAction<{ groupId: number; loading: boolean }>) => {
+      state.loadingGroupChildren[action.payload.groupId] = action.payload.loading;
+    },
+    addSubgroups: (state, action: PayloadAction<{ parentId: number; subgroups: GitLabGroup[] }>) => {
+      const { parentId, subgroups } = action.payload;
+      // Add subgroups that don't already exist
+      const existingIds = new Set(state.groups.map(g => g.id));
+      const newSubgroups = subgroups.filter(g => !existingIds.has(g.id));
+      state.groups = [...state.groups, ...newSubgroups];
+      state.loadedGroupChildren[parentId] = true;
+      state.loadingGroupChildren[parentId] = false;
+    },
+    addGroupProjects: (state, action: PayloadAction<{ groupId: number; projects: GitLabProject[] }>) => {
+      const { groupId, projects } = action.payload;
+      // Add projects that don't already exist
+      const existingIds = new Set(state.projects.map(p => p.id));
+      const newProjects = projects.filter(p => !existingIds.has(p.id));
+      state.projects = [...state.projects, ...newProjects];
+      state.loadedGroupChildren[groupId] = true;
+      state.loadingGroupChildren[groupId] = false;
+    },
+    resetLazyLoadState: (state) => {
+      state.loadedGroupChildren = {};
+      state.loadingGroupChildren = {};
+    },
   },
 });
 
-export const { setGroups, setProjects, setUsers, setLoading, setError, setShowArchived } = gitlabSlice.actions;
+export const {
+  setGroups,
+  setProjects,
+  setUsers,
+  setLoading,
+  setError,
+  setShowArchived,
+  setLoadingGroupChildren,
+  addSubgroups,
+  addGroupProjects,
+  resetLazyLoadState,
+} = gitlabSlice.actions;
 export default gitlabSlice.reducer;

@@ -1,6 +1,7 @@
 /**
  * GroupProjectTree Component
  * Displays GitLab groups and projects in a tree structure with selection and drag-drop capabilities
+ * Uses lazy loading for subgroups and projects to improve performance
  */
 
 import React, { useState, useCallback } from 'react';
@@ -16,7 +17,9 @@ import {
 import { Search as SearchIcon, Folder, FolderOpen, Description } from '@mui/icons-material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
-import { useGitLabData } from '../../store/hooks';
+import { useGitLabData, useAppDispatch } from '../../store/hooks';
+import { setLoadingGroupChildren, addSubgroups, addGroupProjects } from '../../store/slices/gitlabSlice';
+import { gitlabService } from '../../services/gitlab';
 
 interface SelectionItem {
   id: string;
@@ -32,6 +35,9 @@ interface TreeNode {
   full_path: string;
   type: 'group' | 'project';
   children: TreeNode[];
+  numericId?: number; // Numeric ID for lazy loading
+  isLoading?: boolean; // Loading state for children
+  hasUnloadedChildren?: boolean; // Has children that haven't been loaded yet
 }
 
 interface GroupProjectTreeProps {
@@ -46,27 +52,74 @@ export const GroupProjectTree: React.FC<GroupProjectTreeProps> = ({
   onItemToggle,
   onDrop,
 }) => {
-  const { groups, projects, loading, error } = useGitLabData();
+  const dispatch = useAppDispatch();
+  const { groups, projects, loading, error, loadedGroupChildren, loadingGroupChildren } = useGitLabData();
   const [searchTerm, setSearchTerm] = useState('');
   const [expanded, setExpanded] = useState<string[]>([]);
   const [draggedNode, setDraggedNode] = useState<TreeNode | null>(null);
   const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null);
 
+  // Lazy load children when expanding a group
+  const loadGroupChildren = useCallback(async (groupId: number) => {
+    if (loadedGroupChildren[groupId] || loadingGroupChildren[groupId]) {
+      return; // Already loaded or loading
+    }
+
+    dispatch(setLoadingGroupChildren({ groupId, loading: true }));
+
+    try {
+      // Load subgroups and projects in parallel
+      const [subgroups, groupProjects] = await Promise.all([
+        gitlabService.getSubgroups(groupId),
+        gitlabService.getGroupProjects(groupId),
+      ]);
+
+      dispatch(addSubgroups({ parentId: groupId, subgroups }));
+      dispatch(addGroupProjects({ groupId, projects: groupProjects }));
+    } catch (err) {
+      console.error(`Failed to load children for group ${groupId}:`, err);
+      dispatch(setLoadingGroupChildren({ groupId, loading: false }));
+    }
+  }, [dispatch, loadedGroupChildren, loadingGroupChildren]);
+
+  // Handle expand change - load children when expanding
+  const handleExpandedItemsChange = useCallback((_event: React.SyntheticEvent | null, nodeIds: string[]) => {
+    // Find newly expanded nodes
+    const newlyExpanded = nodeIds.filter(id => !expanded.includes(id));
+
+    // Load children for newly expanded groups
+    newlyExpanded.forEach(nodeId => {
+      if (nodeId.startsWith('group-')) {
+        const groupId = parseInt(nodeId.replace('group-', ''), 10);
+        loadGroupChildren(groupId);
+      }
+    });
+
+    setExpanded(nodeIds);
+  }, [expanded, loadGroupChildren]);
+
   // Build tree structure from groups and projects
   const buildTreeData = useCallback((): TreeNode[] => {
-    if (!groups || !projects) return [];
+    if (!groups) return [];
 
     const treeData: TreeNode[] = [];
     const groupMap = new Map<number, TreeNode>();
 
     // First, create all groups
     groups.forEach(group => {
+      const isLoading = loadingGroupChildren[group.id] || false;
+      const hasLoaded = loadedGroupChildren[group.id] || false;
+
       const node: TreeNode = {
         id: `group-${group.id}`,
         name: group.name,
         full_path: group.full_path,
         type: 'group',
         children: [],
+        numericId: group.id,
+        isLoading,
+        // Group might have children if not loaded yet
+        hasUnloadedChildren: !hasLoaded,
       };
       groupMap.set(group.id, node);
 
@@ -87,27 +140,30 @@ export const GroupProjectTree: React.FC<GroupProjectTreeProps> = ({
     });
 
     // Finally, add projects to their groups
-    projects.forEach(project => {
-      const projectNode: TreeNode = {
-        id: `project-${project.id}`,
-        name: project.name,
-        full_path: project.path_with_namespace,
-        type: 'project',
-        children: [],
-      };
+    if (projects) {
+      projects.forEach(project => {
+        const projectNode: TreeNode = {
+          id: `project-${project.id}`,
+          name: project.name,
+          full_path: project.path_with_namespace,
+          type: 'project',
+          children: [],
+          numericId: project.id,
+        };
 
-      if (project.namespace?.id) {
-        const group = groupMap.get(project.namespace.id);
-        if (group) {
-          group.children.push(projectNode);
+        if (project.namespace?.id) {
+          const group = groupMap.get(project.namespace.id);
+          if (group) {
+            group.children.push(projectNode);
+          }
+        } else {
+          treeData.push(projectNode);
         }
-      } else {
-        treeData.push(projectNode);
-      }
-    });
+      });
+    }
 
     return treeData;
-  }, [groups, projects]);
+  }, [groups, projects, loadedGroupChildren, loadingGroupChildren]);
 
   const filterTree = (nodes: TreeNode[], term: string): TreeNode[] => {
     if (!term) return nodes;
@@ -218,6 +274,10 @@ export const GroupProjectTree: React.FC<GroupProjectTreeProps> = ({
       const isDragOver = dragOverNodeId === node.id;
       const isDragging = draggedNode?.id === node.id;
 
+      // For groups, show loading indicator or placeholder for unloaded children
+      const hasChildren = node.children && node.children.length > 0;
+      const showLoadingPlaceholder = node.type === 'group' && node.hasUnloadedChildren && !hasChildren;
+
       return (
         <TreeItem
           key={node.id}
@@ -282,7 +342,13 @@ export const GroupProjectTree: React.FC<GroupProjectTreeProps> = ({
                 size="small"
               />
               {node.type === 'group' ? (
-                expanded.includes(node.id) ? <FolderOpen color={isDragOver ? 'primary' : 'inherit'} /> : <Folder color={isDragOver ? 'primary' : 'inherit'} />
+                node.isLoading ? (
+                  <CircularProgress size={18} sx={{ mr: 0.5 }} />
+                ) : expanded.includes(node.id) ? (
+                  <FolderOpen color={isDragOver ? 'primary' : 'inherit'} />
+                ) : (
+                  <Folder color={isDragOver ? 'primary' : 'inherit'} />
+                )
               ) : (
                 <Description />
               )}
@@ -293,7 +359,19 @@ export const GroupProjectTree: React.FC<GroupProjectTreeProps> = ({
             </Box>
           }
         >
-          {node.children && node.children.length > 0 && renderTree(node.children)}
+          {/* Render children or loading placeholder */}
+          {hasChildren && renderTree(node.children)}
+          {showLoadingPlaceholder && (
+            <TreeItem
+              key={`${node.id}-placeholder`}
+              itemId={`${node.id}-placeholder`}
+              label={
+                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  {node.isLoading ? 'Loading...' : 'Click to load'}
+                </Typography>
+              }
+            />
+          )}
         </TreeItem>
       );
     });
@@ -342,7 +420,7 @@ export const GroupProjectTree: React.FC<GroupProjectTreeProps> = ({
         ) : (
           <SimpleTreeView
             expandedItems={expanded}
-            onExpandedItemsChange={(_event, nodeIds) => setExpanded(nodeIds as string[])}
+            onExpandedItemsChange={handleExpandedItemsChange}
           >
             {renderTree(treeData)}
           </SimpleTreeView>

@@ -78,6 +78,36 @@ export const gitlabAPI = {
   },
 
   /**
+   * Fetch only top-level groups (no parent) - faster initial load
+   */
+  getTopLevelGroups: async (): Promise<GitLabGroup[]> => {
+    const allGroups: GitLabGroup[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+      const params: Record<string, any> = { per_page: perPage, page, top_level_only: true };
+      // all_available is only supported on self-managed GitLab
+      if (!isGitLabSaaS()) {
+        params.all_available = true;
+      }
+
+      const response = await api.get<GitLabGroup[]>('/groups', { params });
+
+      allGroups.push(...response.data);
+
+      // Check if there are more pages
+      const totalPages = parseInt(response.headers['x-total-pages'] || '1', 10);
+      if (page >= totalPages || response.data.length < perPage) {
+        break;
+      }
+      page++;
+    }
+
+    return allGroups;
+  },
+
+  /**
    * Fetch all projects (paginated, returns all pages)
    * @param options.includeArchived - 'false' (default), 'true', or 'both'
    */

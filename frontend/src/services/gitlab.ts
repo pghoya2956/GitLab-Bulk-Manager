@@ -16,27 +16,44 @@ export const gitlabService = {
   },
 
   // Groups
-  async getGroups(params?: { 
-    page?: number; 
-    per_page?: number; 
+  async getGroups(params?: {
+    page?: number;
+    per_page?: number;
     search?: string;
     top_level_only?: boolean;
     parent_id?: number;
   }): Promise<GitLabGroup[]> {
-    const queryParams = { 
+    const queryParams = {
       ...params
     };
-    
+
     // Handle parent_id for subgroups
     if (params?.parent_id) {
-      return gitLabClient.get<GitLabGroup[]>(`/groups/${params.parent_id}/subgroups`, { 
-        params: { 
+      return gitLabClient.get<GitLabGroup[]>(`/groups/${params.parent_id}/subgroups`, {
+        params: {
           per_page: params.per_page || 100
-        } 
+        }
       });
     }
-    
+
     return gitLabClient.get<GitLabGroup[]>('/groups', { params: queryParams });
+  },
+
+  async getTopLevelGroups(): Promise<GitLabGroup[]> {
+    return gitLabClient.get<GitLabGroup[]>('/groups', {
+      params: {
+        per_page: 100,
+        top_level_only: true
+      }
+    });
+  },
+
+  async getSubgroups(parentId: number): Promise<GitLabGroup[]> {
+    return gitLabClient.get<GitLabGroup[]>(`/groups/${parentId}/subgroups`, {
+      params: {
+        per_page: 100
+      }
+    });
   },
 
   async getGroup(id: number): Promise<GitLabGroup> {

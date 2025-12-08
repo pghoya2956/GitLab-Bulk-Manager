@@ -126,6 +126,8 @@ export const useGitLabData = () => {
     loading: gitlab.loading,
     error: gitlab.error,
     showArchived: gitlab.showArchived,
+    loadedGroupChildren: gitlab.loadedGroupChildren,
+    loadingGroupChildren: gitlab.loadingGroupChildren,
   };
 };
 
