@@ -183,6 +183,37 @@ router.post('/bulk-update-access', async (req, res) => {
   res.json({ results });
 });
 
+// Search users - IMPORTANT: This route must be defined BEFORE /:type/:id to avoid route conflict
+router.get('/search/users', async (req, res) => {
+  const { search } = req.query;
+
+  if (!req.session.gitlabUrl || !req.session.gitlabToken) {
+    return res.status(401).json({ error: 'Not authenticated with GitLab' });
+  }
+
+  try {
+    const headers = {
+      'PRIVATE-TOKEN': req.session.gitlabToken,
+    };
+
+    const response = await axios.get(`${req.session.gitlabUrl}/api/v4/users`, {
+      headers,
+      params: {
+        search,
+        per_page: 20,
+        active: true,
+      },
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error searching users:', error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.message || 'Failed to search users',
+    });
+  }
+});
+
 // Get members of a group/project
 router.get('/:type/:id', async (req, res) => {
   const { type, id } = req.params;
@@ -216,37 +247,6 @@ router.get('/:type/:id', async (req, res) => {
     console.error('Error fetching members:', error.response?.data || error.message);
     res.status(error.response?.status || 500).json({
       error: error.response?.data?.message || 'Failed to fetch members',
-    });
-  }
-});
-
-// Search users
-router.get('/search/users', async (req, res) => {
-  const { search } = req.query;
-
-  if (!req.session.gitlabUrl || !req.session.gitlabToken) {
-    return res.status(401).json({ error: 'Not authenticated with GitLab' });
-  }
-
-  try {
-    const headers = {
-      'PRIVATE-TOKEN': req.session.gitlabToken,
-    };
-
-    const response = await axios.get(`${req.session.gitlabUrl}/api/v4/users`, {
-      headers,
-      params: {
-        search,
-        per_page: 20,
-        active: true,
-      },
-    });
-
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error searching users:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({
-      error: error.response?.data?.message || 'Failed to search users',
     });
   }
 });
