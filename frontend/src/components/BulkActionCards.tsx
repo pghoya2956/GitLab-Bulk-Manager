@@ -155,7 +155,8 @@ export const ACTION_CARDS: ActionCard[] = [
     color: '#E91E63',
     category: 'advanced',
     description: '취약점 스캔',
-    implemented: false,
+    implemented: true,
+    requiresProjects: true,
   },
   {
     id: 'compliance',

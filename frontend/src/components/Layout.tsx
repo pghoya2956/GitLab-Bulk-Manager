@@ -40,6 +40,7 @@ export const Layout: React.FC = () => {
             GitLab Bulk Manager
           </Typography>
           <Button color="inherit" onClick={() => navigate('/bulk-actions')} sx={{ fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.1)' }}>⚡ Bulk Actions</Button>
+          <Button color="inherit" onClick={() => navigate('/security')}>보안 스캔</Button>
           <Button color="inherit" onClick={() => navigate('/system-health')}>시스템 상태</Button>
           <Button color="inherit" onClick={() => navigate('/docs')}>문서</Button>
           <NotificationCenter />

@@ -25,8 +25,20 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install nginx for serving frontend
-RUN apk add --no-cache nginx
+# Install nginx, unzip (for repo extraction), and security scan dependencies
+RUN apk add --no-cache \
+    nginx \
+    unzip \
+    curl \
+    git \
+    python3 \
+    py3-pip
+
+# Install Trivy for vulnerability scanning
+RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.0
+
+# Install Semgrep for SAST
+RUN pip3 install --break-system-packages semgrep==1.96.0
 
 # Copy backend
 COPY backend/package*.json ./backend/

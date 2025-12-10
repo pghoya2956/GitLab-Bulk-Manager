@@ -19,8 +19,10 @@ import membersRoutes from './routes/members.js';
 import healthRoutes from './routes/health.js';
 import cicdRoutes from './routes/cicd.js';
 import issuesRoutes from './routes/issues.js';
+import securityRoutes from './routes/security.js';
 import { authenticateToken } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { initDatabase } from './services/securityDb.js';
 
 // Load environment variables
 dotenv.config();
@@ -62,6 +64,7 @@ app.use('/api/permissions', authenticateToken, permissionsRoutes);
 app.use('/api/members', authenticateToken, membersRoutes);
 app.use('/api/cicd', authenticateToken, cicdRoutes);
 app.use('/api/issues', authenticateToken, issuesRoutes);
+app.use('/api/security', securityRoutes); // Some routes need auth, handled internally
 app.use('/api/gitlab/bulk', authenticateToken, bulkRoutes);
 app.use('/api/gitlab', authenticateToken, gitlabRoutes);
 app.use('/api/health', authenticateToken, healthRoutes);
@@ -83,12 +86,23 @@ app.use(notFoundHandler);
 // Error handling
 app.use(errorHandler);
 
-// Start server
+// Initialize security database and start server
 const PORT = process.env.PORT || 4050;
 
-httpServer.listen(PORT, () => {
-  logger.info(`Backend server running on port ${PORT}`);
-});
+initDatabase()
+  .then(() => {
+    logger.info('Security database initialized');
+    httpServer.listen(PORT, () => {
+      logger.info(`Backend server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    logger.warn('Security database initialization failed (security features may not work):', err.message);
+    // Start server anyway - other features will still work
+    httpServer.listen(PORT, () => {
+      logger.info(`Backend server running on port ${PORT}`);
+    });
+  });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

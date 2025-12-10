@@ -14,6 +14,8 @@ import { PrivateRoute } from './components/PrivateRoute';
 import { SystemHealth } from './pages/SystemHealth';
 import { Documentation } from './pages/Documentation';
 import BulkActionsCenterRedux from './pages/BulkActionsCenterRedux';
+import SecurityScans from './pages/SecurityScans';
+import SecurityDetail from './pages/SecurityDetail';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './services/axiosConfig';
 
@@ -56,6 +58,8 @@ function App() {
                       <Route path="bulk-import" element={<Navigate to="/bulk-actions" replace />} />
                       <Route path="monitoring" element={<Navigate to="/system-health" replace />} />
                       <Route path="system-health" element={<SystemHealth />} />
+                      <Route path="security" element={<SecurityScans />} />
+                      <Route path="security/:scanId" element={<SecurityDetail />} />
                       <Route path="settings" element={<Settings />} />
                       <Route path="docs" element={<Documentation />} />
                     </Route>

@@ -44,6 +44,7 @@ import { BulkMembersDialog } from '../components/bulk/BulkMembersDialog';
 import { BulkCICDDialog } from '../components/bulk/BulkCICDDialog';
 import { BulkIssuesDialog } from '../components/bulk/BulkIssuesDialog';
 import { BulkProtectionDialog } from '../components/bulk/BulkProtectionDialog';
+import { BulkSecurityDialog } from '../components/bulk/BulkSecurityDialog';
 import { BulkActionCards } from '../components/BulkActionCards';
 import { ActionHistorySidebar } from '../components/ActionHistorySidebar';
 import ProgressDialog from '../components/ProgressDialog';
@@ -88,6 +89,7 @@ const BulkActionsCenterRedux: React.FC = () => {
     cicd: false,
     issues: false,
     protection: false,
+    security: false,
   });
 
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
@@ -179,6 +181,9 @@ const BulkActionsCenterRedux: React.FC = () => {
         break;
       case 'protection':
         if (selectedCount > 0) openDialog('protection');
+        break;
+      case 'security':
+        if (selectedCount > 0) openDialog('security');
         break;
       default:
         console.log('Action not implemented:', actionId);
@@ -462,6 +467,23 @@ const BulkActionsCenterRedux: React.FC = () => {
         onSuccess={() => {
           closeDialog('protection');
           fetchData();
+        }}
+      />
+
+      <BulkSecurityDialog
+        open={dialogs.security}
+        onClose={() => closeDialog('security')}
+        selectedItems={selectedItems.map(item => ({
+          ...item,
+          full_path: item.path || item.fullPath || item.name
+        }))}
+        onSuccess={() => {
+          closeDialog('security');
+          setSnackbar({
+            open: true,
+            message: '보안 스캔이 완료되었습니다. 결과를 확인하세요.',
+            severity: 'success',
+          });
         }}
       />
 
