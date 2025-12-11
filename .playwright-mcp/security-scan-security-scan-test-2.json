@@ -1,0 +1,126 @@
+{
+  "scan": {
+    "id": 2,
+    "project_id": 17,
+    "project_name": "security-scan-test",
+    "project_path": "security-scan-test",
+    "gitlab_url": "https://gitlab.heeho.net",
+    "status": "completed",
+    "scan_date": "2025-12-11T01:21:14.022Z",
+    "trivy_version": "0.58.0",
+    "semgrep_version": "1.96.0",
+    "duration_seconds": 20,
+    "summary_critical": 0,
+    "summary_high": 0,
+    "summary_medium": 5,
+    "summary_low": 0,
+    "summary_info": 0,
+    "error_message": null
+  },
+  "vulnerabilities": [
+    {
+      "id": 1,
+      "scan_id": 2,
+      "source": "semgrep",
+      "type": "code",
+      "severity": "MEDIUM",
+      "title": "python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+      "description": "Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option.",
+      "file_path": "/tmp/security-scan-BfOGke/source/security-scan-test-main-791534e7f7c336b2cd902b10df38ec1dcb6922c3/app.py",
+      "line_number": 10,
+      "cve": null,
+      "cwe": "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+      "fix_suggestion": null,
+      "package_name": null,
+      "package_version": null,
+      "references_json": "[\"https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-textual-sql\",\"https://www.tutorialspoint.com/sqlalchemy/sqlalchemy_quick_guide.htm\",\"https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-more-specific-text-with-table-expression-literal-column-and-expression-column\"]",
+      "references": [
+        "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-textual-sql",
+        "https://www.tutorialspoint.com/sqlalchemy/sqlalchemy_quick_guide.htm",
+        "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-more-specific-text-with-table-expression-literal-column-and-expression-column"
+      ]
+    },
+    {
+      "id": 2,
+      "scan_id": 2,
+      "source": "semgrep",
+      "type": "code",
+      "severity": "MEDIUM",
+      "title": "javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage",
+      "description": "A CSRF middleware was not detected in your express application. Ensure you are either using one such as `csurf` or `csrf` (see rule references) and/or you are properly doing CSRF validation in your routes with a token or cookies.",
+      "file_path": "/tmp/security-scan-BfOGke/source/security-scan-test-main-791534e7f7c336b2cd902b10df38ec1dcb6922c3/server.js",
+      "line_number": 2,
+      "cve": null,
+      "cwe": "CWE-352: Cross-Site Request Forgery (CSRF)",
+      "fix_suggestion": null,
+      "package_name": null,
+      "package_version": null,
+      "references_json": "[\"https://www.npmjs.com/package/csurf\",\"https://www.npmjs.com/package/csrf\",\"https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html\"]",
+      "references": [
+        "https://www.npmjs.com/package/csurf",
+        "https://www.npmjs.com/package/csrf",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"
+      ]
+    },
+    {
+      "id": 3,
+      "scan_id": 2,
+      "source": "semgrep",
+      "type": "code",
+      "severity": "MEDIUM",
+      "title": "javascript.express.security.injection.raw-html-format.raw-html-format",
+      "description": "User data flows into the host portion of this manually-constructed HTML. This can introduce a Cross-Site-Scripting (XSS) vulnerability if this comes from user-provided input. Consider using a sanitization library such as DOMPurify to sanitize the HTML within.",
+      "file_path": "/tmp/security-scan-BfOGke/source/security-scan-test-main-791534e7f7c336b2cd902b10df38ec1dcb6922c3/server.js",
+      "line_number": 8,
+      "cve": null,
+      "cwe": "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+      "fix_suggestion": null,
+      "package_name": null,
+      "package_version": null,
+      "references_json": "[\"https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html\"]",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+      ]
+    },
+    {
+      "id": 4,
+      "scan_id": 2,
+      "source": "semgrep",
+      "type": "code",
+      "severity": "MEDIUM",
+      "title": "javascript.express.security.audit.xss.direct-response-write.direct-response-write",
+      "description": "Detected directly writing to a Response object from user-defined input. This bypasses any HTML escaping and may expose your application to a Cross-Site-scripting (XSS) vulnerability. Instead, use 'resp.render()' to render safely escaped HTML.",
+      "file_path": "/tmp/security-scan-BfOGke/source/security-scan-test-main-791534e7f7c336b2cd902b10df38ec1dcb6922c3/server.js",
+      "line_number": 8,
+      "cve": null,
+      "cwe": "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+      "fix_suggestion": null,
+      "package_name": null,
+      "package_version": null,
+      "references_json": "[\"https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html\"]",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+      ]
+    },
+    {
+      "id": 5,
+      "scan_id": 2,
+      "source": "semgrep",
+      "type": "code",
+      "severity": "MEDIUM",
+      "title": "javascript.express.security.audit.express-res-sendfile.express-res-sendfile",
+      "description": "The application processes user-input, this is passed to res.sendFile which can allow an attacker to arbitrarily read files on the system through path traversal. It is recommended to perform input validation in addition to canonicalizing the path. This allows you to validate the path against the intended directory it should be accessing.",
+      "file_path": "/tmp/security-scan-BfOGke/source/security-scan-test-main-791534e7f7c336b2cd902b10df38ec1dcb6922c3/server.js",
+      "line_number": 15,
+      "cve": null,
+      "cwe": "CWE-73: External Control of File Name or Path",
+      "fix_suggestion": null,
+      "package_name": null,
+      "package_version": null,
+      "references_json": "[\"https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html\"]",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html"
+      ]
+    }
+  ]
+}

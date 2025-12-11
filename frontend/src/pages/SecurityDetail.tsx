@@ -51,6 +51,7 @@ import {
   formatScanDate,
   getSeverityColor,
   getVulnerabilityTypeLabel,
+  exportGitLabReports,
 } from '../api/security';
 
 interface TabPanelProps {
@@ -135,6 +136,31 @@ const SecurityDetail: React.FC = () => {
     const a = document.createElement('a');
     a.href = url;
     a.download = `security-scan-${scan.project_name}-${scan.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportGitLabReport = () => {
+    if (!scan) return;
+    const reports = exportGitLabReports(scan, vulnerabilities);
+
+    // Export as a combined JSON with all report types
+    const combinedReport = {
+      _info: {
+        description: 'GitLab Security Report Bundle - Compatible with GitLab CI/CD',
+        generated_at: new Date().toISOString(),
+        project: scan.project_name,
+        scan_id: scan.id,
+        usage: 'Upload individual files (gl-*.json) as artifacts in .gitlab-ci.yml',
+      },
+      ...reports,
+    };
+
+    const blob = new Blob([JSON.stringify(combinedReport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gitlab-security-reports-${scan.project_name}-${scan.id}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -236,6 +262,14 @@ const SecurityDetail: React.FC = () => {
           onClick={handleExportJson}
         >
           JSON 내보내기
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<Download />}
+          onClick={handleExportGitLabReport}
+        >
+          GitLab 형식 내보내기
         </Button>
       </Box>
 
