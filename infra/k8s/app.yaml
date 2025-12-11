@@ -56,6 +56,13 @@ spec:
                   key: REDIS_PASSWORD
             - name: REDIS_URL
               value: "redis://:$(REDIS_PASSWORD)@redis:6379"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-bulk-manager-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: "postgresql://securitydb:$(POSTGRES_PASSWORD)@postgres:5432/securitydb"
             - name: FRONTEND_URL
               value: "https://gitlab-bulk-manager.heeho.net"
           resources:
