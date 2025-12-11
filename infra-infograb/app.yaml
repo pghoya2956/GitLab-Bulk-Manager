@@ -1,15 +1,10 @@
 ---
 # GitLab Bulk Manager - Main Application
-# Combined frontend + backend in single container
-#
-# Image source: ghcr.io/pghoya2956/gitlab-bulk-manager:latest
-# Built via GitHub Actions on tag push (v*.*.*)
-#
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gitlab-bulk-manager
-  namespace: gitlab-bulk-manager
+  namespace: chad
   labels:
     app.kubernetes.io/name: gitlab-bulk-manager
     app.kubernetes.io/component: app
@@ -57,7 +52,7 @@ spec:
             - name: REDIS_URL
               value: "redis://:$(REDIS_PASSWORD)@redis:6379"
             - name: FRONTEND_URL
-              value: "https://gitlab-bulk-manager.heeho.net"
+              value: "https://gitlab-bulk-manager.ops.infograb.io"
           resources:
             requests:
               memory: "128Mi"
@@ -86,7 +81,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gitlab-bulk-manager
-  namespace: gitlab-bulk-manager
+  namespace: chad
   labels:
     app.kubernetes.io/name: gitlab-bulk-manager
     app.kubernetes.io/component: app

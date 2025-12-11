@@ -344,10 +344,20 @@ export async function scanProject({ projectId, projectName, projectPath, gitlabU
       durationSeconds,
     };
   } catch (error) {
-    logger.error(`Scan failed for project ${projectId}:`, error.message);
+    // Extract detailed error message
+    let errorMessage = error.message || 'Unknown error';
+    if (error.response) {
+      // Axios error with response
+      errorMessage = `HTTP ${error.response.status}: ${error.response.statusText || ''} - ${JSON.stringify(error.response.data || '').substring(0, 200)}`;
+    } else if (error.code) {
+      // System error (ENOENT, ECONNREFUSED, etc.)
+      errorMessage = `${error.code}: ${error.message}`;
+    }
+
+    logger.error(`Scan failed for project ${projectId}: ${errorMessage}`);
 
     if (scanId) {
-      await failScan(scanId, error.message);
+      await failScan(scanId, errorMessage);
     }
 
     return {
@@ -355,7 +365,7 @@ export async function scanProject({ projectId, projectName, projectPath, gitlabU
       projectId,
       projectName,
       status: 'failed',
-      error: error.message,
+      error: errorMessage,
     };
   } finally {
     // Cleanup
